@@ -1,0 +1,52 @@
+name: CostGraph PR pricing review
+description: Estimate Terraform EC2 cost changes and suggest cheaper instances using CostGraph.
+author: CostGraph
+branding:
+  icon: dollar-sign
+  color: blue
+inputs:
+  api-key:
+    description: CostGraph API key (store as a repository secret).
+    required: true
+  plan-path:
+    description: Path to terraform show -json output for this PR.
+    required: true
+  base-plan-path:
+    description: Optional base branch plan JSON. Compare desired instances across branches without deploying them.
+  github-token:
+    description: Token with pull-requests write permission.
+    default: ${{ github.token }}
+  api-url:
+    description: CostGraph pricing API base URL.
+    default: https://pricing.baselinehq.cloud
+  aws-region:
+    description: Fallback region when the resource has no known region or availability zone.
+  operating-system:
+    description: EC2 pricing OS. Terraform AMI IDs do not identify their licensing costs.
+    default: linux
+  monthly-hours:
+    description: Consistent runtime assumption for before, after, and savings estimates.
+    default: '730'
+  minimum-monthly-savings:
+    description: Minimum monthly savings to show an alternative.
+    default: '1'
+  candidate-instance-types:
+    description: Optional comma-separated EC2 alternatives to price if recommendations fail or return no compatible candidate (maximum 12).
+  comment:
+    description: Post or update a PR comment. Set false for summary-only runs.
+    default: 'true'
+  comment-key:
+    description: Unique stable key per Terraform project, for repositories with multiple plans.
+    default: default
+outputs:
+  before-monthly:
+    description: Monthly cost before for fully priced changed EC2 resources, in USD.
+  after-monthly:
+    description: Monthly cost after for fully priced changed EC2 resources, in USD.
+  monthly-delta:
+    description: After minus before for the fully priced subset, in USD.
+  complete:
+    description: False when changed managed resources were skipped or could not be priced.
+runs:
+  using: node24
+  main: src/index.mjs
