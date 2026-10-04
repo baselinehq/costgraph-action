@@ -195,3 +195,18 @@ test('explicit candidates are priced when recommendations fail and still enforce
   assert.match(renderReview(result, options), /not an exhaustive catalog search/);
   assert.equal(result.after, 146);
 });
+
+test('real AWS optional/computed defaults are resolved only when omitted from configuration', async () => {
+  const fixture = plan([change('aws_instance.web[0]', null, 'proposed', {
+    after_unknown: { host_id: true, tenancy: true, instance_market_options: true, cpu_options: true },
+  })]);
+  fixture.configuration = { root_module: { resources: [{ address: 'aws_instance.web', expressions: {
+    instance_type: { constant_value: 'proposed' },
+  } }] } };
+  const result = await reviewPlan(fixture, api(), options);
+  assert.equal(result.after, 146);
+  assert.ok(result.rows[0].alternative);
+  fixture.configuration.root_module.resources[0].expressions.instance_market_options = { references: ['var.market'] };
+  const unknownMarket = await reviewPlan(fixture, api(), options);
+  assert.equal(unknownMarket.pricedCount, 0);
+});

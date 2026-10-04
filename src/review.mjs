@@ -3,11 +3,33 @@ const positive = n => typeof n === 'number' && Number.isFinite(n) && n > 0;
 const rate = n => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const arch = value => ({ amd64: 'x86_64', x86_64: 'x86_64', arm64: 'arm64', aarch64: 'arm64' })[value?.toLowerCase()];
 
+// AWS marks omitted optional/computed fields as unknown on creates. Consult the
+// configuration so omitted defaults do not look like unresolved explicit inputs.
+function withConfiguredDefaults(plan) {
+  const configured = new Map();
+  function walk(module, prefix = '') {
+    for (const resource of module?.resources ?? []) configured.set(prefix + resource.address, resource.expressions ?? {});
+    for (const [name, call] of Object.entries(module?.module_calls ?? {})) walk(call.module, `${prefix}module.${name}.`);
+  }
+  walk(plan.configuration?.root_module);
+  return { ...plan, resource_changes: plan.resource_changes?.map(resource => {
+    const address = resource.address.replace(/\[(?:\d+|"(?:\\.|[^"\\])*")\]/g, '');
+    const expressions = configured.get(address);
+    if (resource.type !== 'aws_instance' || !expressions || resource.change.after_unknown === true) return resource;
+    const unknown = { ...resource.change.after_unknown };
+    for (const field of ['instance_market_options', 'tenancy', 'host_id', 'cpu_options']) {
+      if (!(field in expressions)) delete unknown[field];
+    }
+    return { ...resource, change: { ...resource.change, after_unknown: unknown } };
+  }) };
+}
+
 export function comparePlans(base, proposed) {
   function resources(plan) {
     if (!String(plan.format_version ?? '').startsWith('1.') || !plan.planned_values || plan.errored) {
       throw new Error('Both comparison inputs must be successful Terraform JSON plans');
     }
+    plan = withConfiguredDefaults(plan);
     const found = new Map();
     const unknowns = new Map((plan.resource_changes ?? []).map(r => [r.address, r.change.after_unknown]));
     function walk(module) {
@@ -98,6 +120,7 @@ export async function reviewPlan(plan, api, options) {
   if (plan.resource_changes !== undefined && !Array.isArray(plan.resource_changes)) {
     throw new Error('Invalid Terraform resource_changes');
   }
+  plan = withConfiguredDefaults(plan);
   const rows = [];
   const skipped = [];
   const warnings = [];
@@ -136,7 +159,7 @@ export async function reviewPlan(plan, api, options) {
       ? row.after.monthly - row.before.monthly : null;
     const current = row.after.price;
     if (current && current.cost_per_hour > 0) {
-      if (!arch(current.architecture) || current.gpu_count !== 0 || resource.change.after?.cpu_options?.length) {
+      if (!arch(current.architecture) || current.gpu_count !== 0 || resource.change.after?.cpu_options?.length || resource.change.after_unknown?.cpu_options) {
         row.notes.push('Alternatives skipped: architecture, GPU, or custom CPU compatibility needs review');
       } else {
         const vm = { cpu_cores: current.cpu_cores, ram_gb: current.ram_gb };
