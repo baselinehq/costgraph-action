@@ -21,7 +21,7 @@ steps:
       terraform show -json tfplan > tfplan.json
 
   - name: Review cost impact
-    uses: s1ntaxe770r/costgraph-pricing-action@<COMMIT_SHA>
+    uses: baselinehq/costgraph-pricing-action@<COMMIT_SHA>
     with:
       api-key: ${{ secrets.COSTGRAPH_API_KEY }}
       plan-path: tfplan.json
@@ -85,7 +85,7 @@ with:
 ```
 
 A runnable example lives at
-[s1ntaxe770r/costgraph-pricing-demo](https://github.com/s1ntaxe770r/costgraph-pricing-demo).
+[baselinehq/costgraph-pricing-demo](https://github.com/baselinehq/costgraph-pricing-demo).
 
 ## Coverage
 
