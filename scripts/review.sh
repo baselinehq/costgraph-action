@@ -12,7 +12,7 @@ trimmed() {
 
 [[ -n "${COSTGRAPH_API_KEY:-}" ]] || fail "api-key is empty. Store a CostGraph API key as the COSTGRAPH_API_KEY secret and pass it as api-key."
 echo "::add-mask::$COSTGRAPH_API_KEY"
-command -v costgraph >/dev/null || fail "the CostGraph CLI is not installed; run baselinehq/costgraph-action/setup first"
+command -v costgraph >/dev/null || fail "the CostGraph CLI is not installed; run baselinehq/costgraph-action first"
 
 hyperscaler_plan='any(.resource_changes[]?; (.provider_name // "") | test("/hashicorp/(aws|azurerm|google|google-beta)$"))'
 work="$(mktemp -d "${RUNNER_TEMP:-/tmp}/costgraph-review.XXXXXX")"

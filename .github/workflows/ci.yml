@@ -31,7 +31,7 @@ jobs:
         with:
           persist-credentials: false
       - id: setup
-        uses: ./setup
+        uses: ./
       - name: Check the installed versions
         env:
           CLI_VERSION: ${{ steps.setup.outputs.cli-version }}
@@ -53,7 +53,7 @@ jobs:
         run: echo "::notice::COSTGRAPH_API_KEY is not available to this run, so the pricing self-test is skipped."
       - id: review
         if: env.HAS_API_KEY == 'true'
-        uses: ./
+        uses: ./terraform-cost
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: examples/digitalocean-plan.json
