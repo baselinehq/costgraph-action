@@ -12,6 +12,11 @@ if [[ -z "$pull_request" ]]; then
   exit 0
 fi
 [[ "$pull_request" =~ ^[0-9]+$ ]] || fail "the event's pull request number is not a number"
+head_repo="$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH")"
+if [[ -z "${COSTGRAPH_API_KEY:-}" && "$head_repo" != "${GITHUB_REPOSITORY:-}" ]]; then
+  echo "::notice::This pull request is from a fork, which gets no secrets; the CI cost comment is skipped."
+  exit 0
+fi
 [[ -n "${COSTGRAPH_API_KEY:-}" ]] || fail "api-key is empty. Store a CostGraph API key with the focus:read scope as the COSTGRAPH_API_KEY secret and pass it as api-key."
 echo "::add-mask::$COSTGRAPH_API_KEY"
 [[ -n "${COSTGRAPH_GITHUB_TOKEN:-}" ]] || fail "github-token is empty; the comment needs a token with pull-requests: write"

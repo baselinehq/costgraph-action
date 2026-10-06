@@ -24,6 +24,11 @@ jobs:
           set -euo pipefail
           echo '{}' >"$RUNNER_TEMP/push.json"
           GITHUB_EVENT_PATH="$RUNNER_TEMP/push.json" bash scripts/ci-cost.sh | grep -F 'Not a pull request event'
+      - name: ci-cost skips pull requests from forks without the api key
+        run: |
+          set -euo pipefail
+          echo '{"pull_request":{"number":3,"head":{"repo":{"full_name":"someone/fork"}}}}' >"$RUNNER_TEMP/fork.json"
+          GITHUB_EVENT_PATH="$RUNNER_TEMP/fork.json" COSTGRAPH_API_KEY='' bash scripts/ci-cost.sh | grep -F 'from a fork'
 
   setup:
     strategy:
