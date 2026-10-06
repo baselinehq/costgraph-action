@@ -1,0 +1,59 @@
+name: Terraform cost
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: cost-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cost:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - if: vars.AWS_PLAN_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Plan
+        env:
+          DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_TOKEN }}
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -lock=false -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - id: cost
+        uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+        with:
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+          working-directory: infra
+          plan-path: plan.json
+          cli-version: v0.6.0
+
+      - name: Show the change
+        env:
+          DIFF: ${{ steps.cost.outputs.diff-monthly-cost }}
+          URL: ${{ steps.cost.outputs.comment-url }}
+        run: echo "Monthly change ${DIFF:-n/a}, comment at ${URL:-none}"

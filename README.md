@@ -1,191 +1,245 @@
-# CostGraph PR pricing review
+# CostGraph GitHub Actions
 
-A dependency-free GitHub Action that reviews a Terraform plan, estimates the
-monthly EC2 cost change, and suggests cheaper instances in one updating PR comment.
-It calls CostGraph's pricing API directly.
+GitHub Actions that bring CostGraph into your pull requests.
 
-## Add it to your Terraform PR workflow
+| Action | Use it to | `uses:` |
+|---|---|---|
+| [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0.0.1` |
+| [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0.0.1` |
+| CI usage | Coming later | - |
 
-Generate a saved plan in your existing authenticated Terraform job, then run:
+Docs: [Terraform cost with Infracost](https://docs.costgraph.ai/costgraph/integrations/infracost) and [all CostGraph integrations](https://docs.costgraph.ai/costgraph/integrations).
+
+## Terraform cost
+
+Put the monthly cost of every Terraform change in front of the reviewer. On each
+pull request the action estimates what the plan costs on any cloud, shows what
+the same machine shape costs at other providers, and keeps it all in one
+pull request comment that is updated in place.
+
+- Hetzner, DigitalOcean, Linode, Vultr, Scaleway, STACKIT, OVHcloud, UpCloud and
+  more are priced from the CostGraph catalog.
+- AWS, Azure and Google Cloud are priced through CostGraph, at your bill rates
+  once you connect Infracost in CostGraph (see below).
+- "Same shape elsewhere" lists cheaper machines with the same vCPU and memory, with
+  the monthly saving.
+- Several Terraform projects land in one comment and one job summary.
+
+### Quick start
+
+1. Create an API key in CostGraph at
+   https://app.costgraph.ai/settings/account/api-keys.
+2. In your repository, open **Settings > Secrets and variables > Actions > New
+   repository secret**, name it `COSTGRAPH_API_KEY` and paste the key.
+3. Add the action after your plan step:
 
 ```yaml
+name: Terraform
+
+on:
+  pull_request:
+
 permissions:
   contents: read
   pull-requests: write
 
-# Under the existing job's steps, after terraform init and cloud authentication:
-steps:
-  - name: Plan
-    run: |
-      terraform plan -input=false -out=tfplan
-      terraform show -json tfplan > tfplan.json
-
-  - name: Review cost impact
-    uses: baselinehq/costgraph-pricing-action@<COMMIT_SHA>
-    with:
-      api-key: ${{ secrets.COSTGRAPH_API_KEY }}
-      plan-path: tfplan.json
-      aws-region: us-east-1
-```
-
-Replace `<COMMIT_SHA>` with a reviewed commit or release of this repository.
-To supply your key, open your consuming GitHub repository's **Settings → Secrets
-and variables → Actions → New repository secret**, name it `COSTGRAPH_API_KEY`,
-and paste a CostGraph API key. The action reads it through `api-key` and sends it
-as the `X-API-Key` request header. Never put a real key in workflow YAML.
-
-Create the key in CostGraph's account settings at
-https://app.costgraph.ai/settings/account/api-keys. This action needs pricing
-access, not cloud provider credentials. Generating a real infrastructure plan
-may separately need your cloud credentials.
-
-The plan file path is relative to the workspace, not a prior step's working
-directory. For a plan generated in `infra/`, use `infra/tfplan.json`.
-
-Use a normal `pull_request` workflow for trusted branches. Fork PRs do not receive
-the CostGraph secret or a write-capable token; skip the privileged review job for
-forks and Dependabot:
-
-```yaml
 jobs:
-  terraform:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'dependabot[bot]'
-    # Your existing plan job and the steps above go here.
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Plan
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+        with:
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+          plan-path: plan.json
 ```
 
-Do not run untrusted PR Terraform under `pull_request_target` with secrets.
-Terraform plans can contain sensitive values; the action sends only instance
-pricing fields to CostGraph, and never publishes the plan JSON.
+The action reads the plan as JSON (`terraform show -json` or `tofu show -json`).
+It does not need cloud credentials; your plan step may. A complete workflow is in
+[examples/terraform-pull-request.yml](examples/terraform-pull-request.yml).
 
-Use workflow concurrency to avoid an older run overwriting a newer review:
+### Inputs
 
-```yaml
-concurrency:
-  group: costgraph-${{ github.event.pull_request.number }}-infra
-  cancel-in-progress: true
-```
-
-## Compare branches without deploying infrastructure
-
-Optionally pass `base-plan-path` alongside `plan-path`. Generate both plans using
-`terraform plan -out=...` and `terraform show -json`: one at the base commit and
-one at the PR commit, with matching variables and provider settings. The action
-compares the planned instance inventories by resource address. That makes the
-estimate meaningful even for an undeployed demo where both plans would otherwise
-show every instance as a creation. Unknown values still remain unpriced.
-
-```yaml
-with:
-  api-key: ${{ secrets.COSTGRAPH_API_KEY }}
-  base-plan-path: base/tfplan.json
-  plan-path: proposed/tfplan.json
-  aws-region: us-east-1
-```
-
-A runnable example lives at
-[baselinehq/costgraph-pricing-demo](https://github.com/baselinehq/costgraph-pricing-demo).
-
-## Coverage
-
-- Standalone `aws_instance` resources: creates, deletes, updates, replacements,
-  module instances, and expanded `count` / `for_each` resources.
-- Both sides are priced at the current catalog rate. This is a projected
-  steady-state compute delta for changed resources, not your historical bill or
-  the total cost of the deployment. Unchanged resources are excluded.
-- Region comes from the resource's `region`, ARN, or availability zone, then the
-  explicit `aws-region` fallback. Set the fallback to the actual deployment region.
-  For mixed-region plans, each resource must have a known region/zone; do not use
-  one fallback to guess unresolved provider aliases.
-- OS defaults to Linux because an AMI ID alone does not establish OS/licensing.
-  Set `operating-system` to the catalog value for other OSes. Mixed-OS plans should
-  be split into separate reviews. Windows licensing, paid AMIs, and discounts are
-  not inferred.
-- On-demand and spot compute. Spot requires a known availability zone.
-- Dedicated hosts/tenancy, ASGs, launch templates, managed node groups, other
-  providers, disks, networking, reservations, and Savings Plans are outside v1.
-  Unsupported changed resources and unpriced instances are explicitly listed.
-- A missing price is **unavailable**, never zero. Totals include only changes with
-  both sides priced (creation/deletion has an explicit zero on its absent side).
-- Terraform plans marked incomplete/deferred are flagged. Targeted plans only
-  cover the resources present in that plan. At most 100 changed EC2 instances are
-  reviewed per run; additional changes are marked skipped.
-
-## Cheaper candidates
-
-The action calls `POST /pricing/compute` for before/after prices, then
-`POST /recommendations/compute` for proposed instances. API authentication uses
-`X-API-Key`. Recommendation requests use the full catalog CPU/RAM capacity, since
-a PR does not contain workload utilization.
-
-Suggestions retain provider, region, OS, purchase type, architecture, and at least
-the same CPU/RAM. Spot candidates also retain the availability zone. GPU instances,
-custom CPU options, and missing architecture metadata are excluded from suggestions.
-Matching capacity does not guarantee equivalent CPU performance, local storage,
-network bandwidth, or AMI compatibility; suggestions require review.
-
-The current API returns one cheapest candidate per provider and has no architecture
-predicate. If that candidate is incompatible, it is omitted; the action cannot
-claim that no other compatible option exists. Savings are calculated from hourly
-rates using the same `monthly-hours` assumption as the impact calculation, rather
-than mixing the API's provider-specific monthly assumptions. Suggested savings
-are relative to the proposed instance and do not change the PR cost total.
-
-If the recommendations endpoint is unavailable or returns no compatible candidate,
-set `candidate-instance-types: m6a.2xlarge,m6i.2xlarge,m7a.2xlarge` to compare an
-explicit shortlist through the pricing endpoint. These candidates receive the
-same compatibility checks. The comment identifies the fallback; it is not an
-exhaustive catalog search. Maximum 12 candidate types per run.
-
-The pricing endpoint currently requires a nonzero `vm` even for exact EC2 SKU
-lookups. The action sends `{cpu_cores: 1, ram_gb: 1}` as that required placeholder,
-disables synthetic base pricing, verifies the returned SKU, and uses the returned
-catalog capacity for recommendations. The placeholder is never used for sizing or
-cost arithmetic.
-
-## Inputs and outputs
-
-| Input | Default | Purpose |
+| Input | Default | Description |
 |---|---|---|
-| `api-key` | required | CostGraph key, passed as a secret |
-| `plan-path` | required | Saved plan converted with `terraform show -json` |
-| `base-plan-path` | none | Optional base branch plan for desired-inventory comparison |
-| `github-token` | `github.token` | PR comment token |
-| `api-url` | `https://pricing.baselinehq.cloud` | HTTPS API base URL |
-| `aws-region` | none | Explicit fallback region |
-| `operating-system` | `linux` | EC2 catalog OS |
-| `monthly-hours` | `730` | Runtime hours, from 1 to 744 |
-| `minimum-monthly-savings` | `1` | USD threshold for suggestions |
-| `candidate-instance-types` | none | Comma-separated fallback shortlist to price |
-| `comment` | `true` | Set `false` for job summary only |
-| `comment-key` | `default` | Stable unique marker per project/plan |
+| `api-key` | required | CostGraph API key. Pass it from a secret. |
+| `plan-path` | required | Terraform plan in JSON. One path per line to review several plans in one comment. |
+| `working-directory` | `.` | Directory that `plan-path` is relative to. |
+| `github-token` | `github.token` | Token that posts the comment. Needs `pull-requests: write`. |
+| `comment` | `true` | Post the estimate on the pull request. The job summary is always written. |
+| `comment-behavior` | `update` | `update` edits the earlier cost comment, `new` posts a new one on every run. |
+| `alternatives` | `true` | Show the same machine shape at other providers. |
+| `summary-format` | `github-comment` | Job summary layout: `github-comment` (same as the comment) or `table`. |
+| `extra-args` | empty | Extra arguments for `costgraph cost breakdown`, one per line. |
+| `fail-on-error` | `true` | Fail the job when the estimate cannot be produced. `false` reports a warning instead. |
+| `cli-version` | `latest` | CostGraph CLI release, such as `v0.6.0`. |
+| `infracost` | `true` | Run Infracost for AWS, Azure and Google Cloud resources. When `false`, those resources are left out. |
+| `infracost-version` | `v0.10.46` | Infracost release. |
+| `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+| `pricing-url` | CLI default | CostGraph pricing URL used for alternatives. |
+| `github-api-url` | `github.api_url` | GitHub API URL, for GitHub Enterprise Server. |
 
-Outputs: `before-monthly`, `after-monthly`, `monthly-delta`, and `complete`.
-Amounts cover the fully priced changed subset only; they are empty when no
-instances are fully priced. `complete` is false for unpriced/unsupported/deferred
-changes. A failure to fetch recommendations is reported in the comment without
-discarding valid cost estimates. Authentication failures fail the action.
+### Outputs
 
-Every run writes a GitHub job summary and updates its existing bot comment.
-Multiple Terraform roots should use distinct `comment-key` values. Comment tables
-are capped to keep large plans readable; calculations still include all priced
-resources within the review limit.
+| Output | Description |
+|---|---|
+| `total-monthly-cost` | Monthly cost after the change, in USD. |
+| `previous-monthly-cost` | Monthly cost before the change. Empty when part of the estimate has no previous cost. |
+| `diff-monthly-cost` | Change in monthly cost. Empty when part of the estimate has no previous cost. |
+| `comment-url` | Link to the pull request comment, empty when none was posted. |
 
-## Test and preview
+```yaml
+      - id: cost
+        uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+        with:
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+          plan-path: plan.json
+      - run: echo "New monthly cost is $TOTAL"
+        env:
+          TOTAL: ${{ steps.cost.outputs.total-monthly-cost }}
+```
+
+### Pinning versions
+
+`@v0.0.1` pins the action release; for the strongest guarantee pin the full
+commit SHA (`baselinehq/costgraph-action/terraform-cost@<sha> # v0.0.1`).
+The CostGraph CLI defaults to the latest release; pin it for repeatable estimates:
+
+```yaml
+      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+        with:
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+          plan-path: plan.json
+          cli-version: v0.6.0
+          infracost-version: v0.10.46
+```
+
+Every download is verified against a SHA-256 checksum before it runs. The CLI is
+checked against the checksums published with its release. Infracost `v0.10.46`
+is checked against checksums pinned in this repository; another Infracost
+version is checked against the checksum published with that release, with a
+warning.
+
+### Multiple Terraform projects
+
+List every plan in one call. Each plan is a project in the comment, with a total
+across all of them:
+
+```yaml
+      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+        with:
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+          working-directory: infra
+          plan-path: |
+            network/plan.json
+            app/plan.json
+```
+
+A pull request has one cost comment. If separate jobs each run the action, the
+last one replaces the comment; collect the plans as artifacts into one job
+instead.
+
+### AWS, Azure and Google Cloud pricing
+
+Connect your Infracost API key in CostGraph (**Integrations > Infracost**, see
+[the Infracost integration docs](https://docs.costgraph.ai/costgraph/integrations/infracost)) and
+AWS, Azure and Google Cloud resources are priced at your bill rates. Without it,
+CostGraph prices what its catalog covers and lists the rest under "Not priced".
+The workflow only needs `COSTGRAPH_API_KEY`; the Infracost key is not stored in
+GitHub.
+
+## CostGraph CLI setup
+
+`baselinehq/costgraph-action` installs the CostGraph CLI (and, by default,
+Infracost for AWS, Azure and Google Cloud) and adds them to `PATH`, so you can run the commands yourself:
+
+```yaml
+      - uses: baselinehq/costgraph-action@v0.0.1
+        with:
+          cli-version: v0.6.0
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+
+      - env:
+          COSTGRAPH_API_KEY: ${{ secrets.COSTGRAPH_API_KEY }}
+        run: |
+          infracost breakdown --path plan.json --format json --out-file infracost.json
+          costgraph cost breakdown --path plan.json --format infracost-json --out-file costgraph.json
+          costgraph cost output --path infracost.json --path costgraph.json --format table
+```
+
+| Input | Default | Description |
+|---|---|---|
+| `cli-version` | `latest` | CostGraph CLI release, such as `v0.6.0`. |
+| `infracost` | `true` | Also install Infracost, which prices AWS, Azure and Google Cloud. |
+| `infracost-version` | `v0.10.46` | Infracost release. |
+| `api-key` | empty | When set, Infracost in later steps prices through CostGraph with no further setup. |
+| `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+
+Outputs: `cli-version` and `infracost-version`, the installed releases.
+
+When `api-key` is set, the action masks it in logs and exports the
+Infracost settings, including the key, to the environment of later steps in the
+job.
+
+## Security
+
+- Store the key as the `COSTGRAPH_API_KEY` secret. Never write it in workflow YAML.
+- Pin the action to a release tag or, better, a commit SHA.
+- Grant only `contents: read` and `pull-requests: write`.
+- Pull requests from forks do not receive secrets or a write token. Skip the job
+  for them, and never run untrusted Terraform under `pull_request_target`:
+
+  ```yaml
+  jobs:
+    plan:
+      if: github.event.pull_request.head.repo.full_name == github.repository
+  ```
+
+- Inputs reach the scripts through environment variables, never through shell
+  interpolation, and the key is never printed.
+- The plan file stays on the runner. CostGraph receives the details of the
+  resources it prices; the comment lists resource addresses and their costs.
+- Use workflow `concurrency` so an older run does not overwrite a newer comment:
+
+  ```yaml
+  concurrency:
+    group: cost-${{ github.event.pull_request.number }}
+    cancel-in-progress: true
+  ```
+
+## Troubleshooting
+
+| Message | Fix |
+|---|---|
+| `api-key is empty` | The secret is missing or not available to this run (for example a fork pull request). |
+| `plan ... was not found` | `plan-path` is relative to `working-directory`, not to an earlier step's directory. |
+| `... is not a Terraform plan in JSON` | Convert the saved plan: `terraform show -json tfplan > plan.json`. With `setup-terraform`, set `terraform_wrapper: false` so the JSON is not wrapped. |
+| `could not post the cost comment` | Add `pull-requests: write` to the workflow permissions. |
+| AWS, Azure or Google Cloud lines show as not priced | Connect Infracost in CostGraph. |
+| `Not a pull request event` | The comment is posted only on pull request events; the job summary is still written. |
+| `could not download ... check that the version exists` | Check `cli-version` or `infracost-version` against the published releases. |
+
+## Development
 
 ```sh
-cd costgraph-pricing-action
-npm test
-npm run demo
+actionlint
+shellcheck scripts/*.sh
 ```
 
-No installation or credentials are needed. The demo uses explicitly illustrative
-prices and does not call GitHub or CostGraph. Tests cover the pricing request and
-response contracts, arithmetic, unknown values, partial coverage, compatibility,
-authentication errors, caching, and comment creation/update. Live API validation
-requires your CostGraph key and a real Terraform plan.
+CI runs both, runs the setup action on Linux (amd64 and arm64) and
+macOS, and prices `examples/digitalocean-plan.json` through `terraform-cost` when
+the `COSTGRAPH_API_KEY` secret is available.
 
-Implementation references: [Terraform JSON plan format](https://developer.hashicorp.com/terraform/internals/json-format),
-[GitHub JavaScript actions](https://docs.github.com/en/actions/tutorials/create-actions/create-a-javascript-action),
-and [GitHub workflow security](https://docs.github.com/en/actions/reference/security/secure-use).
+## License
+
+AGPL-3.0. If you modify and distribute this action, or run a modified version as a service, publish your changes under the same license. See [LICENSE](LICENSE).

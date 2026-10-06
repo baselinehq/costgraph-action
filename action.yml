@@ -1,52 +1,42 @@
-name: CostGraph PR pricing review
-description: Estimate Terraform EC2 cost changes and suggest cheaper instances using CostGraph.
+name: CostGraph CLI setup
+description: Install the CostGraph CLI, checksum-verified, with optional cloud pricing for AWS, Azure and Google Cloud wired to CostGraph.
 author: CostGraph
 branding:
   icon: dollar-sign
   color: blue
 inputs:
-  api-key:
-    description: CostGraph API key (store as a repository secret).
-    required: true
-  plan-path:
-    description: Path to terraform show -json output for this PR.
-    required: true
-  base-plan-path:
-    description: Optional base branch plan JSON. Compare desired instances across branches without deploying them.
-  github-token:
-    description: Token with pull-requests write permission.
-    default: ${{ github.token }}
-  api-url:
-    description: CostGraph pricing API base URL.
-    default: https://pricing.baselinehq.cloud
-  aws-region:
-    description: Fallback region when the resource has no known region or availability zone.
-  operating-system:
-    description: EC2 pricing OS. Terraform AMI IDs do not identify their licensing costs.
-    default: linux
-  monthly-hours:
-    description: Consistent runtime assumption for before, after, and savings estimates.
-    default: '730'
-  minimum-monthly-savings:
-    description: Minimum monthly savings to show an alternative.
-    default: '1'
-  candidate-instance-types:
-    description: Optional comma-separated EC2 alternatives to price if recommendations fail or return no compatible candidate (maximum 12).
-  comment:
-    description: Post or update a PR comment. Set false for summary-only runs.
+  cli-version:
+    description: CostGraph CLI release to install, such as v0.5.0, or latest.
+    default: latest
+  infracost:
+    description: Also install Infracost, which prices AWS, Azure and Google Cloud resources.
     default: 'true'
-  comment-key:
-    description: Unique stable key per Terraform project, for repositories with multiple plans.
-    default: default
+  infracost-version:
+    description: Infracost release to install. The default release has checksums pinned in this action.
+    default: v0.10.46
+  api-key:
+    description: Optional CostGraph API key. When set, later steps run Infracost against CostGraph pricing without further setup.
+    default: ''
+  api-url:
+    description: CostGraph API base URL.
+    default: https://api.costgraph.ai
 outputs:
-  before-monthly:
-    description: Monthly cost before for fully priced changed EC2 resources, in USD.
-  after-monthly:
-    description: Monthly cost after for fully priced changed EC2 resources, in USD.
-  monthly-delta:
-    description: After minus before for the fully priced subset, in USD.
-  complete:
-    description: False when changed managed resources were skipped or could not be priced.
+  cli-version:
+    description: The CostGraph CLI release that was installed.
+    value: ${{ steps.install.outputs.cli-version }}
+  infracost-version:
+    description: The Infracost release that was installed, empty when Infracost was not installed.
+    value: ${{ steps.install.outputs.infracost-version }}
 runs:
-  using: node24
-  main: src/index.mjs
+  using: composite
+  steps:
+    - id: install
+      shell: bash
+      env:
+        CLI_VERSION: ${{ inputs.cli-version }}
+        INSTALL_INFRACOST: ${{ inputs.infracost }}
+        INFRACOST_VERSION: ${{ inputs.infracost-version }}
+        COSTGRAPH_API_KEY: ${{ inputs.api-key }}
+        COSTGRAPH_API_URL: ${{ inputs.api-url }}
+        EXPORT_INFRACOST_ENV: 'true'
+      run: bash "$GITHUB_ACTION_PATH/scripts/setup.sh"
