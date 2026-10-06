@@ -216,7 +216,7 @@ jobs:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
 ```
 
-`ci-cost` is not in a tagged release of this action yet; pin a commit SHA of `main`, or the next release tag once it is published. The job needs no checkout. Pull requests from forks get no secrets or write
+The job needs no checkout. Pull requests from forks get no secrets or write
 token, so the `if:` skips them; without it the action skips them with a notice.
 
 ### Inputs
