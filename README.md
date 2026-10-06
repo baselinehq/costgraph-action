@@ -8,6 +8,8 @@ GitHub Actions that bring CostGraph into your pull requests.
 | [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0.0.1` |
 | CI usage | Coming later | - |
 
+Docs: [Terraform cost with Infracost](https://docs.costgraph.ai/costgraph/integrations/infracost) and [all CostGraph integrations](https://docs.costgraph.ai/costgraph/integrations).
+
 ## Terraform cost
 
 Put the monthly cost of every Terraform change in front of the reviewer. On each
@@ -149,7 +151,8 @@ instead.
 
 ### AWS, Azure and Google Cloud pricing
 
-Connect your Infracost API key in CostGraph (**Integrations > Infracost**) and
+Connect your Infracost API key in CostGraph (**Integrations > Infracost**, see
+[the Infracost integration docs](https://docs.costgraph.ai/costgraph/integrations/infracost)) and
 AWS, Azure and Google Cloud resources are priced at your bill rates. Without it,
 CostGraph prices what its catalog covers and lists the rest under "Not priced".
 The workflow only needs `COSTGRAPH_API_KEY`; the Infracost key is not stored in
