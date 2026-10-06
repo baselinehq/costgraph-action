@@ -19,6 +19,11 @@ jobs:
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
       - name: shellcheck
         run: shellcheck scripts/*.sh
+      - name: ci-cost skips events that are not pull requests
+        run: |
+          set -euo pipefail
+          echo '{}' >"$RUNNER_TEMP/push.json"
+          GITHUB_EVENT_PATH="$RUNNER_TEMP/push.json" bash scripts/ci-cost.sh | grep -F 'Not a pull request event'
 
   setup:
     strategy:

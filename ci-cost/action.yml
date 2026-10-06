@@ -1,0 +1,57 @@
+name: CostGraph CI cost
+description: Comment what a pull request's CI runs have cost so far, from the CI runners reported to CostGraph.
+author: CostGraph
+branding:
+  icon: dollar-sign
+  color: blue
+inputs:
+  api-key:
+    description: CostGraph API key with the focus:read scope. Store it as a repository secret.
+    required: true
+  github-token:
+    description: Token used to read the pull request and post the comment. Needs pull-requests write.
+    default: ${{ github.token }}
+  comment-behavior:
+    description: update edits the earlier CI cost comment in place, new posts a new comment on every run.
+    default: update
+  fail-on-error:
+    description: Fail the job when the CI cost cannot be read or posted. The default reports a warning instead.
+    default: 'false'
+  cli-version:
+    description: CostGraph CLI release to use, such as v0.8.0, or latest. The CI cost comment needs a release newer than v0.7.0.
+    default: latest
+  api-url:
+    description: CostGraph API base URL.
+    default: https://api.costgraph.ai
+  github-api-url:
+    description: GitHub API URL, for GitHub Enterprise Server.
+    default: ${{ github.api_url }}
+outputs:
+  total-cost:
+    description: CI cost of the pull request so far, in your CostGraph billing currency. Empty when no comment was posted.
+    value: ${{ steps.comment.outputs.total-cost }}
+  comment-url:
+    description: URL of the pull request comment, empty when no comment was posted.
+    value: ${{ steps.comment.outputs.comment-url }}
+runs:
+  using: composite
+  steps:
+    - id: setup
+      shell: bash
+      env:
+        CLI_VERSION: ${{ inputs.cli-version }}
+        INSTALL_INFRACOST: 'false'
+      run: bash "$GITHUB_ACTION_PATH/../scripts/setup.sh"
+    - id: comment
+      shell: bash
+      continue-on-error: ${{ inputs.fail-on-error == 'false' }}
+      env:
+        COSTGRAPH_API_KEY: ${{ inputs.api-key }}
+        COSTGRAPH_API_URL: ${{ inputs.api-url }}
+        COSTGRAPH_GITHUB_TOKEN: ${{ inputs.github-token }}
+        COMMENT_BEHAVIOR: ${{ inputs.comment-behavior }}
+        COSTGRAPH_GITHUB_API_URL: ${{ inputs.github-api-url }}
+      run: bash "$GITHUB_ACTION_PATH/../scripts/ci-cost.sh"
+    - if: steps.comment.outcome == 'failure'
+      shell: bash
+      run: echo "::warning::The CostGraph CI cost comment could not be posted; see the comment step log. fail-on-error is false, so the job continues."
