@@ -29,12 +29,18 @@ case "$SUMMARY_FORMAT" in
 esac
 infracost_ready=false
 plans=0
+plans_args=()
+output_help="$(costgraph cost output --help 2>&1 || true)"
+plan_flag_supported=false
+[[ "$output_help" == *--plan* ]] && plan_flag_supported=true
 
 while IFS= read -r line || [[ -n "$line" ]]; do
   plan="$(trimmed "$line")" || continue
   plans=$((plans + 1))
   [[ -f "$plan" ]] || fail "plan $plan was not found in $(pwd). plan-path is relative to working-directory."
   jq -e 'has("format_version")' "$plan" >/dev/null 2>&1 || fail "$plan is not a Terraform plan in JSON. Create it with: terraform show -json tfplan > plan.json"
+
+  [[ "$plan_flag_supported" == false ]] || plans_args+=(--plan "$plan")
 
   echo "::group::Estimating $plan"
   if jq -e "$hyperscaler_plan" "$plan" >/dev/null; then
@@ -59,7 +65,7 @@ done <<<"${PLAN_PATHS:-}"
 
 ((plans > 0)) || fail "plan-path is empty. Pass the terraform show -json output for each plan."
 
-costgraph cost output "${estimates[@]}" --format json --out-file "$work/estimate.json"
+costgraph cost output "${estimates[@]}" ${plans_args[@]+"${plans_args[@]}"} --format json --out-file "$work/estimate.json"
 estimate_path="${OUTPUT_PATH:-${RUNNER_TEMP:-/tmp}/costgraph-estimate.json}"
 mkdir -p "$(dirname "$estimate_path")"
 cp "$work/estimate.json" "$estimate_path"
@@ -68,11 +74,11 @@ if [[ "$SUMMARY_FORMAT" == table ]]; then
   {
     echo '## Cost estimate'
     echo '```text'
-    costgraph cost output "${estimates[@]}" --format table
+    costgraph cost output --path "$work/estimate.json" --format table
     echo '```'
   } >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 else
-  costgraph cost output "${estimates[@]}" --format github-comment >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+  costgraph cost output --path "$work/estimate.json" --format github-comment >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 fi
 printf '\nHow CostGraph prices Terraform: https://docs.costgraph.ai/costgraph/integrations/infracost\n' >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 jq -r '
@@ -90,7 +96,7 @@ elif [[ -z "$pull_request" ]]; then
   echo "::notice::Not a pull request event; the estimate is in the job summary."
 else
   [[ -n "${COSTGRAPH_GITHUB_TOKEN:-}" ]] || fail "github-token is empty; the comment needs a token with pull-requests: write"
-  comment_url="$(GITHUB_TOKEN="$COSTGRAPH_GITHUB_TOKEN" costgraph -o json cost comment github "${estimates[@]}" \
+  comment_url="$(GITHUB_TOKEN="$COSTGRAPH_GITHUB_TOKEN" costgraph -o json cost comment github --path "$work/estimate.json" \
     --repo "$GITHUB_REPOSITORY" \
     --pull-request "$pull_request" \
     --behavior "${COMMENT_BEHAVIOR:-update}" \
