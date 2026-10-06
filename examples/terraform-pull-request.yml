@@ -44,7 +44,7 @@ jobs:
           terraform show -json tfplan > plan.json
 
       - id: cost
-        uses: baselinehq/costgraph-action@v0.0.1
+        uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           working-directory: infra

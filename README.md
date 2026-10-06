@@ -1,19 +1,29 @@
-# CostGraph cost review
+# CostGraph GitHub Actions
+
+GitHub Actions that bring CostGraph into your pull requests.
+
+| Action | Use it to | `uses:` |
+|---|---|---|
+| [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0.0.1` |
+| [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0.0.1` |
+| CI usage | Coming later | - |
+
+## Terraform cost
 
 Put the monthly cost of every Terraform change in front of the reviewer. On each
-pull request this action estimates what the plan costs on any cloud, shows what
+pull request the action estimates what the plan costs on any cloud, shows what
 the same machine shape costs at other providers, and keeps it all in one
 pull request comment that is updated in place.
 
-- AWS, Azure and Google Cloud are priced at your bill rates when you connect
-  Infracost in CostGraph.
 - Hetzner, DigitalOcean, Linode, Vultr, Scaleway, STACKIT, OVHcloud, UpCloud and
   more are priced from the CostGraph catalog.
+- AWS, Azure and Google Cloud are priced through CostGraph, at your bill rates
+  once you connect Infracost in CostGraph (see below).
 - "Same shape elsewhere" lists cheaper machines with the same vCPU and memory, with
   the monthly saving.
 - Several Terraform projects land in one comment and one job summary.
 
-## Quick start
+### Quick start
 
 1. Create an API key in CostGraph at
    https://app.costgraph.ai/settings/account/api-keys.
@@ -46,7 +56,7 @@ jobs:
           terraform plan -input=false -out=tfplan
           terraform show -json tfplan > plan.json
 
-      - uses: baselinehq/costgraph-action@v0.0.1
+      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: plan.json
@@ -56,7 +66,7 @@ The action reads the plan as JSON (`terraform show -json` or `tofu show -json`).
 It does not need cloud credentials; your plan step may. A complete workflow is in
 [examples/terraform-pull-request.yml](examples/terraform-pull-request.yml).
 
-## Inputs
+### Inputs
 
 | Input | Default | Description |
 |---|---|---|
@@ -77,7 +87,7 @@ It does not need cloud credentials; your plan step may. A complete workflow is i
 | `pricing-url` | CLI default | CostGraph pricing URL used for alternatives. |
 | `github-api-url` | `github.api_url` | GitHub API URL, for GitHub Enterprise Server. |
 
-## Outputs
+### Outputs
 
 | Output | Description |
 |---|---|
@@ -88,7 +98,7 @@ It does not need cloud credentials; your plan step may. A complete workflow is i
 
 ```yaml
       - id: cost
-        uses: baselinehq/costgraph-action@v0.0.1
+        uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: plan.json
@@ -97,14 +107,14 @@ It does not need cloud credentials; your plan step may. A complete workflow is i
           TOTAL: ${{ steps.cost.outputs.total-monthly-cost }}
 ```
 
-## Pinning versions
+### Pinning versions
 
-`@v0.0.1` pins this action; for the strongest guarantee pin the full commit SHA
-of a release (`baselinehq/costgraph-action@<sha> # v0.0.1`). The CostGraph CLI
-defaults to the latest release; pin it for repeatable estimates:
+`@v0.0.1` pins the action release; for the strongest guarantee pin the full
+commit SHA (`baselinehq/costgraph-action/terraform-cost@<sha> # v0.0.1`).
+The CostGraph CLI defaults to the latest release; pin it for repeatable estimates:
 
 ```yaml
-      - uses: baselinehq/costgraph-action@v0.0.1
+      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: plan.json
@@ -118,13 +128,13 @@ is checked against checksums pinned in this repository; another Infracost
 version is checked against the checksum published with that release, with a
 warning.
 
-## Multiple Terraform projects
+### Multiple Terraform projects
 
 List every plan in one call. Each plan is a project in the comment, with a total
 across all of them:
 
 ```yaml
-      - uses: baselinehq/costgraph-action@v0.0.1
+      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           working-directory: infra
@@ -137,7 +147,7 @@ A pull request has one cost comment. If separate jobs each run the action, the
 last one replaces the comment; collect the plans as artifacts into one job
 instead.
 
-## AWS, Azure and Google Cloud pricing
+### AWS, Azure and Google Cloud pricing
 
 Connect your Infracost API key in CostGraph (**Integrations > Infracost**) and
 AWS, Azure and Google Cloud resources are priced at your bill rates. Without it,
@@ -145,13 +155,13 @@ CostGraph prices what its catalog covers and lists the rest under "Not priced".
 The workflow only needs `COSTGRAPH_API_KEY`; the Infracost key is not stored in
 GitHub.
 
-## Custom workflows: the setup action
+## CostGraph CLI setup
 
-`baselinehq/costgraph-action/setup` installs the CostGraph CLI and Infracost and
-adds them to `PATH`, so you can run the commands yourself:
+`baselinehq/costgraph-action` installs the CostGraph CLI (and, by default,
+Infracost for AWS, Azure and Google Cloud) and adds them to `PATH`, so you can run the commands yourself:
 
 ```yaml
-      - uses: baselinehq/costgraph-action/setup@v0.0.1
+      - uses: baselinehq/costgraph-action@v0.0.1
         with:
           cli-version: v0.6.0
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
@@ -167,14 +177,14 @@ adds them to `PATH`, so you can run the commands yourself:
 | Input | Default | Description |
 |---|---|---|
 | `cli-version` | `latest` | CostGraph CLI release, such as `v0.6.0`. |
-| `infracost` | `true` | Also install Infracost. |
+| `infracost` | `true` | Also install Infracost, which prices AWS, Azure and Google Cloud. |
 | `infracost-version` | `v0.10.46` | Infracost release. |
 | `api-key` | empty | When set, Infracost in later steps prices through CostGraph with no further setup. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
 
 Outputs: `cli-version` and `infracost-version`, the installed releases.
 
-When `api-key` is set, the setup action masks it in logs and exports the
+When `api-key` is set, the action masks it in logs and exports the
 Infracost settings, including the key, to the environment of later steps in the
 job.
 
@@ -223,6 +233,6 @@ actionlint
 shellcheck scripts/*.sh
 ```
 
-CI runs both, installs the tools with `./setup` on Linux (amd64 and arm64) and
-macOS, and prices `examples/digitalocean-plan.json` through the root action when
+CI runs both, runs the setup action on Linux (amd64 and arm64) and
+macOS, and prices `examples/digitalocean-plan.json` through `terraform-cost` when
 the `COSTGRAPH_API_KEY` secret is available.
