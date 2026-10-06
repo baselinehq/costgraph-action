@@ -236,3 +236,7 @@ shellcheck scripts/*.sh
 CI runs both, runs the setup action on Linux (amd64 and arm64) and
 macOS, and prices `examples/digitalocean-plan.json` through `terraform-cost` when
 the `COSTGRAPH_API_KEY` secret is available.
+
+## License
+
+AGPL-3.0. If you modify and distribute this action, or run a modified version as a service, publish your changes under the same license. See [LICENSE](LICENSE).
