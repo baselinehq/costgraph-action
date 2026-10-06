@@ -90,7 +90,7 @@ else
     --repo "$GITHUB_REPOSITORY" \
     --pull-request "$pull_request" \
     --behavior "${COMMENT_BEHAVIOR:-update}" \
-    --github-api-url "${COSTGRAPH_GITHUB_API_URL:-${GITHUB_API_URL:-https://api.github.com}}" | jq -r '.url')"
+    --github-api-url "${COSTGRAPH_GITHUB_API_URL:-${GITHUB_API_URL:-https://api.github.com}}" | jq -r '.url // empty')"
   echo "Cost comment: $comment_url"
 fi
 echo "comment-url=$comment_url" >>"${GITHUB_OUTPUT:-/dev/stdout}"
