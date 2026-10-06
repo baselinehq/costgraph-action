@@ -21,8 +21,8 @@ pull request comment that is updated in place.
   more are priced from the CostGraph catalog.
 - AWS, Azure and Google Cloud are priced through CostGraph, at your bill rates
   once you connect Infracost in CostGraph (see below).
-- "Same shape elsewhere" lists cheaper machines with the same vCPU and memory, with
-  the monthly saving.
+- "Comparable instances" lists alternative instance sizes and prices across providers,
+  with potential monthly savings. Review hardware and region differences before switching.
 - Several Terraform projects land in one comment and one job summary.
 
 ### Quick start
