@@ -1,0 +1,49 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "digitalocean_droplet.web",
+          "mode": "managed",
+          "type": "digitalocean_droplet",
+          "name": "web",
+          "provider_name": "registry.terraform.io/digitalocean/digitalocean",
+          "schema_version": 1,
+          "values": {"image": "ubuntu-24-04-x64", "name": "web", "region": "nyc3", "size": "s-2vcpu-4gb"}
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "digitalocean_droplet.web",
+      "mode": "managed",
+      "type": "digitalocean_droplet",
+      "name": "web",
+      "provider_name": "registry.terraform.io/digitalocean/digitalocean",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {"image": "ubuntu-24-04-x64", "name": "web", "region": "nyc3", "size": "s-2vcpu-4gb"},
+        "after_unknown": {"id": true, "ipv4_address": true}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {"digitalocean": {"name": "digitalocean", "full_name": "registry.terraform.io/digitalocean/digitalocean"}},
+    "root_module": {
+      "resources": [
+        {
+          "address": "digitalocean_droplet.web",
+          "mode": "managed",
+          "type": "digitalocean_droplet",
+          "name": "web",
+          "provider_config_key": "digitalocean",
+          "expressions": {"image": {"constant_value": "ubuntu-24-04-x64"}, "name": {"constant_value": "web"}, "region": {"constant_value": "nyc3"}, "size": {"constant_value": "s-2vcpu-4gb"}}
+        }
+      ]
+    }
+  }
+}
