@@ -81,6 +81,8 @@ It does not need cloud credentials; your plan step may. A complete workflow is i
 | `alternatives` | `true` | Show the same machine shape at other providers. |
 | `summary-format` | `github-comment` | Job summary layout: `github-comment` (same as the comment) or `table`. |
 | `extra-args` | empty | Extra arguments for `costgraph cost breakdown`, one per line. |
+| `output-path` | runner temp dir | Where to write the estimate file (Infracost JSON 0.2, all plans merged), relative to `working-directory`. |
+| `artifact-name` | | Upload the estimate file as a workflow artifact with this name, so you can download it from the run. Empty skips the upload. |
 | `fail-on-error` | `true` | Fail the job when the estimate cannot be produced. `false` reports a warning instead. |
 | `cli-version` | `latest` | CostGraph CLI release, such as `v0.6.0`. |
 | `infracost` | `true` | Run Infracost for AWS, Azure and Google Cloud resources. When `false`, those resources are left out. |
@@ -97,6 +99,7 @@ It does not need cloud credentials; your plan step may. A complete workflow is i
 | `previous-monthly-cost` | Monthly cost before the change. Empty when part of the estimate has no previous cost. |
 | `diff-monthly-cost` | Change in monthly cost. Empty when part of the estimate has no previous cost. |
 | `comment-url` | Link to the pull request comment, empty when none was posted. |
+| `estimate-path` | Absolute path of the estimate file (Infracost JSON 0.2, all plans merged), for later steps such as `infracost comment` or your own checks. |
 
 ```yaml
       - id: cost

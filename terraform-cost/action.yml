@@ -53,6 +53,12 @@ inputs:
   working-directory:
     description: Directory that plan-path is relative to.
     default: .
+  output-path:
+    description: Where to write the estimate file (Infracost JSON 0.2, all plans merged). Relative to working-directory. Defaults to a file in the runner's temp directory.
+    default: ''
+  artifact-name:
+    description: Upload the estimate file as a workflow artifact with this name. Empty skips the upload.
+    default: ''
 outputs:
   total-monthly-cost:
     description: Monthly cost after the change, in the estimate currency (USD by default).
@@ -66,6 +72,9 @@ outputs:
   comment-url:
     description: URL of the pull request comment, empty when no comment was posted.
     value: ${{ steps.review.outputs.comment-url }}
+  estimate-path:
+    description: Absolute path of the estimate file (Infracost JSON 0.2, all plans merged).
+    value: ${{ steps.review.outputs.estimate-path }}
 runs:
   using: composite
   steps:
@@ -93,7 +102,14 @@ runs:
         EXTRA_ARGS: ${{ inputs.extra-args }}
         SUMMARY_FORMAT: ${{ inputs.summary-format }}
         COSTGRAPH_GITHUB_API_URL: ${{ inputs.github-api-url }}
+        OUTPUT_PATH: ${{ inputs.output-path }}
       run: bash "$GITHUB_ACTION_PATH/../scripts/review.sh"
+    - if: inputs.artifact-name != '' && steps.review.outputs.estimate-path != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.review.outputs.estimate-path }}
+        if-no-files-found: error
     - if: steps.review.outcome == 'failure'
       shell: bash
       run: echo "::warning::The CostGraph cost estimate could not be produced; see the review step log. fail-on-error is false, so the job continues."
