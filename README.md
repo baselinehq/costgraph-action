@@ -6,7 +6,7 @@ GitHub Actions that bring CostGraph into your pull requests.
 |---|---|---|
 | [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0.0.1` |
 | [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0.0.1` |
-| CI usage | Coming later | - |
+| [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@v0.0.3` |
 
 Docs: [Terraform cost with Infracost](https://docs.costgraph.ai/costgraph/integrations/infracost) and [all CostGraph integrations](https://docs.costgraph.ai/costgraph/integrations).
 
@@ -161,6 +161,79 @@ CostGraph prices what its catalog covers and lists the rest under "Not priced".
 The workflow only needs `COSTGRAPH_API_KEY`; the Infracost key is not stored in
 GitHub.
 
+## CI cost comment
+
+Show the reviewer what a pull request's CI has cost so far. The action reads the
+cost of the pull request's CI runs from CostGraph and keeps it in one pull
+request comment, separate from the Terraform cost comment, that is updated in
+place on every run:
+
+- the total since the day the pull request was opened
+- the cost of each workflow
+- how much went on failed jobs, cancelled jobs and re-runs
+
+### Requirements
+
+- **Blacksmith connected in CostGraph.** The cost comes from the CI runners
+  reported to CostGraph; connect Blacksmith first (see
+  [the Blacksmith integration docs](https://docs.costgraph.ai/costgraph/integrations/blacksmith)).
+  Until its usage arrives, the comment says no CI cost is recorded yet.
+- **An API key with the `focus:read` scope**, stored as the `COSTGRAPH_API_KEY`
+  secret. Without that scope the action reports that the key needs it.
+- **CostGraph CLI v0.8.0 or later.** The default `cli-version: latest` picks it up.
+
+Usage is collected periodically (Blacksmith usage within about 6 hours), so the
+comment trails the runs: the run that posts it, and runs from the last few
+hours, may not be counted yet.
+
+### Workflow
+
+Add a final job that waits for the others, so the comment is posted after the
+CI on each push, even when a job fails:
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v5
+      - run: make test
+
+  ci-cost:
+    needs: [test]
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: baselinehq/costgraph-action/ci-cost@v0.0.3
+        with:
+          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
+```
+
+The job needs no checkout. Pull requests from forks get no secrets or write
+token, so the `if:` skips them; without it the action skips them with a notice.
+
+### Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `api-key` | required | CostGraph API key with the `focus:read` scope. Pass it from a secret. |
+| `github-token` | `github.token` | Token that reads the pull request and posts the comment. Needs `pull-requests: write`. |
+| `comment-behavior` | `update` | `update` edits the earlier CI cost comment, `new` posts a new one on every run. |
+| `fail-on-error` | `false` | Fail the job when the CI cost cannot be read or posted. The default reports a warning instead. |
+| `cli-version` | `latest` | CostGraph CLI release; needs a release newer than `v0.7.0`. |
+| `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+| `github-api-url` | `github.api_url` | GitHub API URL, for GitHub Enterprise Server. |
+
+Outputs: `total-cost`, the pull request's CI cost so far, and `comment-url`, the
+link to the comment. Both are empty when no comment was posted.
+
 ## CostGraph CLI setup
 
 `baselinehq/costgraph-action` installs the CostGraph CLI (and, by default,
@@ -228,8 +301,10 @@ job.
 | `plan ... was not found` | `plan-path` is relative to `working-directory`, not to an earlier step's directory. |
 | `... is not a Terraform plan in JSON` | Convert the saved plan: `terraform show -json tfplan > plan.json`. With `setup-terraform`, set `terraform_wrapper: false` so the JSON is not wrapped. |
 | `could not post the cost comment` | Add `pull-requests: write` to the workflow permissions. |
+| `the CostGraph API key needs the focus:read scope` | Create an API key with the `focus:read` scope for `ci-cost`. |
+| `No CI cost is recorded for this pull request yet` | Connect Blacksmith in CostGraph, then wait for its usage to arrive. |
 | AWS, Azure or Google Cloud lines show as not priced | Connect Infracost in CostGraph. |
-| `Not a pull request event` | The comment is posted only on pull request events; the job summary is still written. |
+| `Not a pull request event` | The comment is posted only on pull request events; for `terraform-cost` the job summary is still written. |
 | `could not download ... check that the version exists` | Check `cli-version` or `infracost-version` against the published releases. |
 
 ## Development

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `ci-cost`: comments what a pull request's CI runs have cost so far, from the CI runners reported to CostGraph. Needs CostGraph CLI newer than v0.7.0.
+
 ## v0.0.2
 
 - `terraform-cost`: the estimate is available as a file. New output `estimate-path`, new inputs `output-path` (where to write it) and `artifact-name` (upload it as a workflow artifact you can download from the run).
