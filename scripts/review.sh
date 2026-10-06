@@ -70,6 +70,7 @@ if [[ "$SUMMARY_FORMAT" == table ]]; then
 else
   costgraph cost output "${estimates[@]}" --format github-comment >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 fi
+printf '\nHow CostGraph prices Terraform: https://docs.costgraph.ai/costgraph/integrations/infracost\n' >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 jq -r '
   all(.projects[]; .pastBreakdown != null) as $every_project_has_previous
   | "total-monthly-cost=\(.totalMonthlyCost // "")",
