@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `terraform-cost`: resources that already exist are priced from your bill when the API key can read it (`focus:read`). Needs a CostGraph CLI that supports `cost output --plan`; older versions keep estimates.
 - `ci-cost`: comments what a pull request's CI runs have cost so far, from the CI runners reported to CostGraph. Needs CostGraph CLI newer than v0.7.0.
 
 ## v0.0.2

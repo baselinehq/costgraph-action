@@ -65,7 +65,7 @@ jobs:
 ```
 
 The action reads the plan as JSON (`terraform show -json` or `tofu show -json`).
-It does not need cloud credentials; your plan step may. A complete workflow is in
+It does not need cloud credentials; your plan step may. Resources that already exist are priced from your bill when the API key can read it (`focus:read`). A complete workflow is in
 [examples/terraform-pull-request.yml](examples/terraform-pull-request.yml).
 
 ### Inputs
