@@ -6,7 +6,7 @@ GitHub Actions that bring CostGraph into your pull requests.
 |---|---|---|
 | [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0.0.1` |
 | [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0.0.1` |
-| [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@main` |
+| [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@v0.0.3` |
 
 Docs: [Terraform cost with Infracost](https://docs.costgraph.ai/costgraph/integrations/infracost) and [all CostGraph integrations](https://docs.costgraph.ai/costgraph/integrations).
 
@@ -180,7 +180,7 @@ place on every run:
   Until its usage arrives, the comment says no CI cost is recorded yet.
 - **An API key with the `focus:read` scope**, stored as the `COSTGRAPH_API_KEY`
   secret. Without that scope the action reports that the key needs it.
-- **CostGraph CLI newer than v0.7.0.** The default `cli-version: latest` picks it up.
+- **CostGraph CLI v0.8.0 or later.** The default `cli-version: latest` picks it up.
 
 Usage is collected periodically (Blacksmith usage within about 6 hours), so the
 comment trails the runs: the run that posts it, and runs from the last few
@@ -211,7 +211,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: baselinehq/costgraph-action/ci-cost@main
+      - uses: baselinehq/costgraph-action/ci-cost@v0.0.3
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
 ```
