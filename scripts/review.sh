@@ -74,11 +74,11 @@ if [[ "$SUMMARY_FORMAT" == table ]]; then
   {
     echo '## Cost estimate'
     echo '```text'
-    costgraph cost output "${estimates[@]}" ${plans_args[@]+"${plans_args[@]}"} --format table
+    costgraph cost output --path "$work/estimate.json" --format table
     echo '```'
   } >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 else
-  costgraph cost output "${estimates[@]}" ${plans_args[@]+"${plans_args[@]}"} --format github-comment >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+  costgraph cost output --path "$work/estimate.json" --format github-comment >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 fi
 printf '\nHow CostGraph prices Terraform: https://docs.costgraph.ai/costgraph/integrations/infracost\n' >>"${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 jq -r '
@@ -96,7 +96,7 @@ elif [[ -z "$pull_request" ]]; then
   echo "::notice::Not a pull request event; the estimate is in the job summary."
 else
   [[ -n "${COSTGRAPH_GITHUB_TOKEN:-}" ]] || fail "github-token is empty; the comment needs a token with pull-requests: write"
-  comment_url="$(GITHUB_TOKEN="$COSTGRAPH_GITHUB_TOKEN" costgraph -o json cost comment github "${estimates[@]}" \
+  comment_url="$(GITHUB_TOKEN="$COSTGRAPH_GITHUB_TOKEN" costgraph -o json cost comment github --path "$work/estimate.json" \
     --repo "$GITHUB_REPOSITORY" \
     --pull-request "$pull_request" \
     --behavior "${COMMENT_BEHAVIOR:-update}" \
