@@ -60,6 +60,10 @@ done <<<"${PLAN_PATHS:-}"
 ((plans > 0)) || fail "plan-path is empty. Pass the terraform show -json output for each plan."
 
 costgraph cost output "${estimates[@]}" --format json --out-file "$work/estimate.json"
+estimate_path="${OUTPUT_PATH:-${RUNNER_TEMP:-/tmp}/costgraph-estimate.json}"
+mkdir -p "$(dirname "$estimate_path")"
+cp "$work/estimate.json" "$estimate_path"
+echo "estimate-path=$(cd "$(dirname "$estimate_path")" && pwd)/$(basename "$estimate_path")" >>"${GITHUB_OUTPUT:-/dev/stdout}"
 if [[ "$SUMMARY_FORMAT" == table ]]; then
   {
     echo '## Cost estimate'

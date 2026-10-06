@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.2
+
+- `terraform-cost`: the estimate is available as a file. New output `estimate-path`, new inputs `output-path` (where to write it) and `artifact-name` (upload it as a workflow artifact you can download from the run).
+
 ## v0.0.1
 
 First release of the CostGraph GitHub Actions.
