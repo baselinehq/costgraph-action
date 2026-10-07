@@ -41,6 +41,8 @@ runs:
       env:
         CLI_VERSION: ${{ inputs.cli-version }}
         INSTALL_INFRACOST: 'false'
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/../scripts/setup.sh"
     - id: comment
       shell: bash

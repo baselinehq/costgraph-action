@@ -84,6 +84,8 @@ runs:
         CLI_VERSION: ${{ inputs.cli-version }}
         INSTALL_INFRACOST: ${{ inputs.infracost }}
         INFRACOST_VERSION: ${{ inputs.infracost-version }}
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/../scripts/setup.sh"
     - id: review
       shell: bash

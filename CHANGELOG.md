@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A `v0` tag follows every 0.x release; use `@v0` to get fixes without editing the workflow.
+- The setup step prints a notice in the run log when a newer action release is available than the pinned one.
 - `terraform-cost`: an Infracost pricing error, such as an API key without `pricing:read`, now fails the review step instead of posting a $0 estimate.
 - `terraform-cost`: resources that already exist are priced from your bill when the API key can read it (`focus:read`). Needs a CostGraph CLI that supports `cost output --plan`; older versions keep estimates.
 - `ci-cost`: comments what a pull request's CI runs have cost so far, from the CI runners reported to CostGraph. Needs CostGraph CLI newer than v0.7.0.

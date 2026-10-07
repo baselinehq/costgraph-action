@@ -4,9 +4,9 @@ GitHub Actions that bring CostGraph into your pull requests.
 
 | Action | Use it to | `uses:` |
 |---|---|---|
-| [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0.0.1` |
-| [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0.0.1` |
-| [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@v0.0.3` |
+| [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0` |
+| [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0` |
+| [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@v0` |
 
 Docs: [Terraform cost with Infracost](https://docs.costgraph.ai/costgraph/integrations/infracost) and [all CostGraph integrations](https://docs.costgraph.ai/costgraph/integrations).
 
@@ -58,7 +58,7 @@ jobs:
           terraform plan -input=false -out=tfplan
           terraform show -json tfplan > plan.json
 
-      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+      - uses: baselinehq/costgraph-action/terraform-cost@v0
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: plan.json
@@ -103,7 +103,7 @@ It does not need cloud credentials; your plan step may. Resources that already e
 
 ```yaml
       - id: cost
-        uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+        uses: baselinehq/costgraph-action/terraform-cost@v0
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: plan.json
@@ -114,12 +114,16 @@ It does not need cloud credentials; your plan step may. Resources that already e
 
 ### Pinning versions
 
-`@v0.0.1` pins the action release; for the strongest guarantee pin the full
-commit SHA (`baselinehq/costgraph-action/terraform-cost@<sha> # v0.0.1`).
-The CostGraph CLI defaults to the latest release; pin it for repeatable estimates:
+`@v0` follows every 0.x release, so fixes reach you without editing the
+workflow. To pin an exact release instead, use its tag (`@v0.0.5`) or, for the
+strongest guarantee, the full commit SHA
+(`baselinehq/costgraph-action/terraform-cost@<sha> # v0.0.5`); the setup step
+prints a notice in the run log when a newer release is out, and Dependabot's
+`github-actions` updates open a pull request for it. The CostGraph CLI defaults
+to the latest release; pin it for repeatable estimates:
 
 ```yaml
-      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+      - uses: baselinehq/costgraph-action/terraform-cost@v0
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           plan-path: plan.json
@@ -139,7 +143,7 @@ List every plan in one call. Each plan is a project in the comment, with a total
 across all of them:
 
 ```yaml
-      - uses: baselinehq/costgraph-action/terraform-cost@v0.0.1
+      - uses: baselinehq/costgraph-action/terraform-cost@v0
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
           working-directory: infra
@@ -211,7 +215,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: baselinehq/costgraph-action/ci-cost@v0.0.3
+      - uses: baselinehq/costgraph-action/ci-cost@v0
         with:
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
 ```
@@ -240,7 +244,7 @@ link to the comment. Both are empty when no comment was posted.
 Infracost for AWS, Azure and Google Cloud) and adds them to `PATH`, so you can run the commands yourself:
 
 ```yaml
-      - uses: baselinehq/costgraph-action@v0.0.1
+      - uses: baselinehq/costgraph-action@v0
         with:
           cli-version: v0.6.0
           api-key: ${{ secrets.COSTGRAPH_API_KEY }}
