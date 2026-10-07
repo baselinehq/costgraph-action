@@ -53,6 +53,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         infracost_ready=true
       fi
       infracost breakdown --path "$plan" --format json --out-file "$work/infracost-$plans.json"
+      infracost_error="$(jq -r '[.projects[].metadata.errors[]?.message] | first // empty' "$work/infracost-$plans.json")"
+      [[ -z "$infracost_error" ]] || fail "Infracost could not price $plan: ${infracost_error%%$'\n'*}"
       estimates+=(--path "$work/infracost-$plans.json")
     else
       echo "::warning::$plan has AWS, Azure or Google Cloud resources and infracost is false, so they are left out of the estimate"
