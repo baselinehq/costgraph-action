@@ -55,6 +55,16 @@ case "$(uname -m)" in
 esac
 
 version_pattern='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
+
+announce_newer_action() {
+  local used="${ACTION_REF:-}" latest
+  [[ "$used" =~ $version_pattern ]] || return 0
+  latest="$(curl -fsS --max-time 5 ${ACTION_TOKEN:+-H "Authorization: Bearer $ACTION_TOKEN"} \
+    https://api.github.com/repos/baselinehq/costgraph-action/releases/latest 2>/dev/null | jq -r '.tag_name // empty' 2>/dev/null)" || return 0
+  [[ "$latest" =~ $version_pattern && "$latest" != "$used" ]] || return 0
+  [[ "$(printf '%s\n%s\n' "$used" "$latest" | sort -V | tail -1)" == "$latest" ]] || return 0
+  echo "::notice title=costgraph-action $latest is available::This workflow uses costgraph-action $used. Use @v0 to get every 0.x release, or see https://github.com/baselinehq/costgraph-action/releases"
+}
 root="${RUNNER_TEMP:?RUNNER_TEMP is not set}/costgraph"
 bin="$root/bin"
 mkdir -p "$bin"
@@ -121,3 +131,5 @@ fi
   echo "cli-version=$cli_version"
   echo "infracost-version=$infracost_version"
 } >>"$GITHUB_OUTPUT"
+
+announce_newer_action

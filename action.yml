@@ -39,4 +39,6 @@ runs:
         COSTGRAPH_API_KEY: ${{ inputs.api-key }}
         COSTGRAPH_API_URL: ${{ inputs.api-url }}
         EXPORT_INFRACOST_ENV: 'true'
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/scripts/setup.sh"
