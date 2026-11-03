@@ -38,6 +38,9 @@ inputs:
   docker:
     description: Set to true when the jobs need Docker.
     default: 'false'
+  secrets:
+    description: Set to false when the jobs use no secrets. Only such jobs go to a provider that is set to receive no secrets in CostGraph.
+    default: 'true'
   release:
     description: Set to true for release or deploy jobs. They take the best runner without random spread and are never cancelled or re-run by AutoPilot.
     default: 'false'
@@ -85,6 +88,7 @@ runs:
         ROUTE_GPU: ${{ inputs.gpu }}
         ROUTE_DOCKER: ${{ inputs.docker }}
         ROUTE_RELEASE: ${{ inputs.release }}
+        ROUTE_SECRETS: ${{ inputs.secrets }}
         FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
       run: bash "$GITHUB_ACTION_PATH/../scripts/route.sh"
     - id: fallback

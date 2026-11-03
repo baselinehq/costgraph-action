@@ -63,6 +63,7 @@ request="$(jq -cn \
   --arg gpu "${ROUTE_GPU:-}" \
   --arg docker "${ROUTE_DOCKER:-false}" \
   --arg release "${ROUTE_RELEASE:-false}" \
+  --arg secrets "${ROUTE_SECRETS:-true}" \
   --arg policy "${ROUTE_POLICY:-}" \
   --argjson providers "$providers" \
   --argjson jobs "$jobs" \
@@ -75,7 +76,7 @@ request="$(jq -cn \
     pull_request: ($payload[0].pull_request.number // null),
     default: $default, os: $os, arch: $arch,
     cpu: (($cpu | tonumber?) // 0), ram_gb: (($ram | tonumber?) // null), gpu: (($gpu | tonumber?) // 0),
-    docker: ($docker == "true"), release: ($release == "true"),
+    docker: ($docker == "true"), release: ($release == "true"), secrets: ($secrets != "false"),
     policy: $policy, providers: $providers, jobs: $jobs
   }')" || request=""
 [[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."

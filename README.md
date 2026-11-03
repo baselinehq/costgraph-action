@@ -344,6 +344,7 @@ get no credentials, so their jobs always use their default labels.
 | `providers` | empty | Runner providers this workflow may use, such as `blacksmith, ubicloud`. Can only narrow what CostGraph allows. |
 | `os`, `arch`, `cpu` | from the label | What the jobs need, when the default label does not say. |
 | `ram`, `gpu`, `docker` | none | Minimum memory in GB, minimum GPUs, and `true` when the jobs need Docker. |
+| `secrets` | `true` | `false` when the jobs use no secrets. Only such jobs go to a provider set to receive no secrets in CostGraph. |
 | `release` | `false` | `true` for release or deploy jobs: they take the best runner without spread and AutoPilot never cancels or re-runs them. |
 | `fail-on-error` | `false` | Fail the routing job when AutoPilot cannot answer, instead of using the default labels. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
