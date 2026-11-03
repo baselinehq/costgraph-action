@@ -20,6 +20,18 @@ inputs:
   providers:
     description: Runner providers this workflow may use, separated by commas or spaces. Can only narrow the providers allowed in CostGraph.
     default: ''
+  max-cores:
+    description: Largest runner AutoPilot may pick, in vCPUs, as a positive whole number. Can only narrow the limit set in CostGraph.
+    default: ''
+  allowed-os:
+    description: Operating systems AutoPilot may pick, separated by commas (linux, windows, macos). Can only narrow the systems allowed in CostGraph.
+    default: ''
+  allowed-arch:
+    description: CPU architectures AutoPilot may pick, separated by commas (x64, arm64). Can only narrow the architectures allowed in CostGraph.
+    default: ''
+  allow-gpu:
+    description: Set to false to keep AutoPilot off GPU runners. Can only narrow what CostGraph allows, true never turns GPUs on.
+    default: ''
   os:
     description: Operating system the jobs need (linux, macos or windows). Empty reads it from the default label.
     default: ''
@@ -81,6 +93,10 @@ runs:
         ROUTE_JOBS: ${{ inputs.jobs }}
         ROUTE_POLICY: ${{ inputs.policy }}
         ROUTE_PROVIDERS: ${{ inputs.providers }}
+        ROUTE_MAX_CORES: ${{ inputs.max-cores }}
+        ROUTE_ALLOWED_OS: ${{ inputs.allowed-os }}
+        ROUTE_ALLOWED_ARCH: ${{ inputs.allowed-arch }}
+        ROUTE_ALLOW_GPU: ${{ inputs.allow-gpu }}
         ROUTE_OS: ${{ inputs.os }}
         ROUTE_ARCH: ${{ inputs.arch }}
         ROUTE_CPU: ${{ inputs.cpu }}

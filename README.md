@@ -342,6 +342,10 @@ get no credentials, so their jobs always use their default labels.
 | `api-key` | empty | CostGraph API key with the `ci:route` scope. Empty signs in with GitHub OIDC. |
 | `policy` | empty | `cheapest`, `balanced` or `fastest`. Overrides the CostGraph setting for this workflow. |
 | `providers` | empty | Runner providers this workflow may use, such as `blacksmith, ubicloud`. Can only narrow what CostGraph allows. |
+| `max-cores` | empty | Largest runner AutoPilot may pick, in vCPUs. Can only narrow the limit set in CostGraph. |
+| `allowed-os` | empty | Operating systems AutoPilot may pick, such as `linux, macos`. Can only narrow what CostGraph allows. |
+| `allowed-arch` | empty | CPU architectures AutoPilot may pick, `x64` and `arm64`. Can only narrow what CostGraph allows. |
+| `allow-gpu` | empty | `false` keeps AutoPilot off GPU runners. Can only narrow what CostGraph allows. |
 | `os`, `arch`, `cpu` | from the label | What the jobs need, when the default label does not say. |
 | `ram`, `gpu`, `docker` | none | Minimum memory in GB, minimum GPUs, and `true` when the jobs need Docker. |
 | `secrets` | `true` | `false` when the jobs use no secrets. Only such jobs go to a provider set to receive no secrets in CostGraph. |

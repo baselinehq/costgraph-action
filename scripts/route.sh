@@ -46,6 +46,36 @@ workflow_path="${workflow_path#"$repository/"}"
 workflow_path="${workflow_path%%@*}"
 providers="$(tr -s ', ' '\n' <<<"${ROUTE_PROVIDERS:-}" | jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else . end')"
 
+limit_list() {
+  local input="$1" value="$2" allowed="$3" aliases="$4" list
+  list="$(tr -s ', ' '\n' <<<"$value" | jq -Rsc --argjson allowed "$allowed" --argjson aliases "$aliases" \
+    'split("\n") | map(select(length > 0) | ascii_downcase | $aliases[.] // .) | unique
+     | if length == 0 then null elif all(.[]; . as $v | $allowed | index($v)) then . else error("not allowed") end' 2>/dev/null)" || {
+    echo "::warning::The $input input must list only: $(jq -r 'join(", ")' <<<"$allowed"). It is ignored." >&2
+    list=null
+  }
+  echo "$list"
+}
+
+max_cores=null
+if [[ -n "${ROUTE_MAX_CORES:-}" ]]; then
+  if [[ "$ROUTE_MAX_CORES" =~ ^[1-9][0-9]*$ ]]; then
+    max_cores="$ROUTE_MAX_CORES"
+  else
+    echo "::warning::The max-cores input must be a positive whole number. It is ignored."
+  fi
+fi
+
+allow_gpu=null
+case "${ROUTE_ALLOW_GPU:-}" in
+  true | false) allow_gpu="$ROUTE_ALLOW_GPU" ;;
+  '') ;;
+  *) echo "::warning::The allow-gpu input must be true or false. It is ignored." ;;
+esac
+
+allowed_os="$(limit_list allowed-os "${ROUTE_ALLOWED_OS:-}" '["linux","macos","windows"]' '{}')"
+allowed_arch="$(limit_list allowed-arch "${ROUTE_ALLOWED_ARCH:-}" '["x64","x86_64","arm64"]' '{"x64":"x86_64"}')"
+
 request="$(jq -cn \
   --arg repository "$repository" \
   --arg workflow "${GITHUB_WORKFLOW:-}" \
@@ -66,6 +96,10 @@ request="$(jq -cn \
   --arg secrets "${ROUTE_SECRETS:-true}" \
   --arg policy "${ROUTE_POLICY:-}" \
   --argjson providers "$providers" \
+  --argjson max_cores "$max_cores" \
+  --argjson allowed_os "$allowed_os" \
+  --argjson allowed_arch "$allowed_arch" \
+  --argjson allow_gpu "$allow_gpu" \
   --argjson jobs "$jobs" \
   --slurpfile payload <(jq -c '.' "$event_path" 2>/dev/null || echo '{}') \
   '{
@@ -77,7 +111,8 @@ request="$(jq -cn \
     default: $default, os: $os, arch: $arch,
     cpu: (($cpu | tonumber?) // 0), ram_gb: (($ram | tonumber?) // null), gpu: (($gpu | tonumber?) // 0),
     docker: ($docker == "true"), release: ($release == "true"), secrets: ($secrets != "false"),
-    policy: $policy, providers: $providers, jobs: $jobs
+    policy: $policy, providers: $providers, jobs: $jobs,
+    max_cores: $max_cores, allowed_os: $allowed_os, allowed_arch: $allowed_arch, allow_gpu: $allow_gpu
   }')" || request=""
 [[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."
 
