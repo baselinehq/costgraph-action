@@ -124,6 +124,14 @@ status="${response##*$'\n'}"
 body="${response%$'\n'*}"
 [[ "$status" == "200" ]] || use_default "CostGraph AutoPilot answered $status: $(jq -r '.message // "no message"' <<<"$body" 2>/dev/null)."
 
+if jq -e '[.data.jobs[]?.reason] | index("billing_required")' <<<"$body" >/dev/null 2>&1; then
+  billing_url="$(jq -r '.data.billing_url // empty' <<<"$body")"
+  echo "::error::Set up billing in CostGraph to keep using AutoPilot for CI: ${billing_url:-https://app.costgraph.ai/settings/account/billing}" >&2
+  echo "billing-required=true" >>"${GITHUB_OUTPUT:-/dev/stdout}"
+  finish "$default_label" "$jobs"
+  exit 0
+fi
+
 runner="$(jq -er '.data.runner | select(type == "string" and length > 0)' <<<"$body" 2>/dev/null)" || use_default "CostGraph AutoPilot sent an answer this action cannot read."
 runners="$(jq -c '.data.jobs | map_values(.runner)' <<<"$body")"
 [[ "$jobs" != '{}' ]] || runners='{}'

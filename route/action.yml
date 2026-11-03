@@ -117,3 +117,8 @@ runs:
         jobs="$(jq -c 'if type == "object" then . else {} end' <<<"${ROUTE_JOBS:-{\}}" 2>/dev/null)" || jobs='{}'
         { echo "runner=$ROUTE_DEFAULT"; echo "runners=$jobs"; } >>"$GITHUB_OUTPUT"
         echo "::warning::CostGraph AutoPilot could not choose a runner, so jobs use their default runner."
+    - if: steps.route.outputs.billing-required == 'true'
+      shell: bash
+      run: |
+        echo "::error::CostGraph billing is required to keep using AutoPilot for CI. Set it up in CostGraph under Settings, Billing."
+        exit 1

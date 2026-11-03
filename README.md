@@ -281,7 +281,9 @@ Let CostGraph AutoPilot choose the runner each job runs on. A small routing job
 asks CostGraph which runner label fits each job's policy (cheapest, balanced or
 fastest) and the jobs that need it run there. Whenever AutoPilot cannot answer,
 for any reason, every job gets its default label, so the workflow never waits on
-CostGraph.
+CostGraph. The one exception is billing: after the CostGraph trial, if billing
+is not set up, the routing job fails with a link to set it up, so CI never runs
+up a bill you have not seen.
 
 ```yaml
 name: CI

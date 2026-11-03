@@ -59,3 +59,8 @@ runs:
     - if: steps.comment.outcome == 'failure'
       shell: bash
       run: echo "::warning::The CostGraph CI cost comment could not be posted; see the comment step log. fail-on-error is false, so the job continues."
+    - if: steps.comment.outputs.billing-required == 'true'
+      shell: bash
+      run: |
+        echo "::error::CostGraph billing is required to see CI cost. Set it up in CostGraph under Settings, Billing."
+        exit 1

@@ -117,3 +117,8 @@ runs:
     - if: steps.review.outcome == 'failure'
       shell: bash
       run: echo "::warning::The CostGraph cost estimate could not be produced; see the review step log. fail-on-error is false, so the job continues."
+    - if: steps.review.outputs.billing-required == 'true'
+      shell: bash
+      run: |
+        echo "::error::CostGraph billing is required to see Terraform cost. Set it up in CostGraph under Settings, Billing."
+        exit 1
