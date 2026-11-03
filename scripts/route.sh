@@ -59,7 +59,7 @@ limit_list() {
 
 max_cores=null
 if [[ -n "${ROUTE_MAX_CORES:-}" ]]; then
-  if [[ "$ROUTE_MAX_CORES" =~ ^[1-9][0-9]*$ ]]; then
+  if [[ "$ROUTE_MAX_CORES" =~ ^[1-9][0-9]{0,8}$ ]]; then
     max_cores="$ROUTE_MAX_CORES"
   else
     echo "::warning::The max-cores input must be a positive whole number. It is ignored."
