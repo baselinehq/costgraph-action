@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `ci-cost` and `terraform-cost` skip with a notice, instead of failing, when the organization's CostGraph trial has ended and billing is not set up. `route` uses the default labels then.
 - `route`: new action for CostGraph AutoPilot for CI. It outputs the runner label for each job and falls back to the job's default label whenever AutoPilot cannot answer.
 - Every action can sign in with GitHub OIDC (`permissions: id-token: write`) instead of a stored API key; `api-key` is now optional in `ci-cost` and `terraform-cost`, and an explicit `api-key` still wins.
 - A `v0` tag follows every 0.x release; use `@v0` to get fixes without editing the workflow.

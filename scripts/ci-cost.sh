@@ -21,6 +21,12 @@ fi
 [[ -n "${COSTGRAPH_API_KEY:-}" ]] || fail "not signed in to CostGraph. Add 'permissions: id-token: write' to sign in with GitHub, or store a CostGraph API key with the focus:read scope as the COSTGRAPH_API_KEY secret and pass it as api-key."
 echo "::add-mask::$COSTGRAPH_API_KEY"
 export COSTGRAPH_API_KEY
+# shellcheck source=scripts/billing.sh
+source "$(dirname "${BASH_SOURCE[0]}")/billing.sh"
+if billing_required; then
+  echo "::notice::Set up billing in CostGraph to see CI cost. The CI cost comment is skipped."
+  exit 0
+fi
 [[ -n "${COSTGRAPH_GITHUB_TOKEN:-}" ]] || fail "github-token is empty; the comment needs a token with pull-requests: write"
 command -v costgraph >/dev/null || fail "the CostGraph CLI is not installed; run baselinehq/costgraph-action first"
 costgraph cost ci comment github --help 2>/dev/null | grep -q -- '--pull-request' || fail "this CostGraph CLI release cannot post the CI cost comment; set cli-version to latest or a release newer than v0.7.0"

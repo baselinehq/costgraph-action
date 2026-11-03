@@ -14,6 +14,12 @@ COSTGRAPH_API_KEY="${INPUT_API_KEY:-${COSTGRAPH_API_KEY:-}}"
 [[ -n "$COSTGRAPH_API_KEY" ]] || fail "not signed in to CostGraph. Add 'permissions: id-token: write' to sign in with GitHub, or store a CostGraph API key as the COSTGRAPH_API_KEY secret and pass it as api-key."
 echo "::add-mask::$COSTGRAPH_API_KEY"
 export COSTGRAPH_API_KEY
+# shellcheck source=scripts/billing.sh
+source "$(dirname "${BASH_SOURCE[0]}")/billing.sh"
+if billing_required; then
+  echo "::notice::Set up billing in CostGraph to see Terraform cost. The cost estimate is skipped."
+  exit 0
+fi
 command -v costgraph >/dev/null || fail "the CostGraph CLI is not installed; run baselinehq/costgraph-action first"
 
 hyperscaler_plan='any(.resource_changes[]?; (.provider_name // "") | test("/hashicorp/(aws|azurerm|google|google-beta)$"))'
