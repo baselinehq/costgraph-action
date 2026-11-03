@@ -33,7 +33,7 @@ trap 'use_default "CostGraph AutoPilot hit an unexpected error."' ERR
 
 COSTGRAPH_API_KEY="${INPUT_API_KEY:-${COSTGRAPH_API_KEY:-}}"
 if [[ -z "$COSTGRAPH_API_KEY" ]]; then
-  echo "::notice::CostGraph AutoPilot is not signed in (fork pull requests get no credentials), so jobs use their default runner."
+  echo "::notice::CostGraph AutoPilot is not signed in, so jobs use their default runner. Pull requests from forks are never signed in."
   finish "$default_label" "$jobs"
   exit 0
 fi
@@ -77,7 +77,8 @@ request="$(jq -cn \
     cpu: (($cpu | tonumber?) // 0), ram_gb: (($ram | tonumber?) // null), gpu: (($gpu | tonumber?) // 0),
     docker: ($docker == "true"), release: ($release == "true"),
     policy: $policy, providers: $providers, jobs: $jobs
-  }')" && [[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."
+  }')" || request=""
+[[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."
 
 api_url="${COSTGRAPH_API_URL:-https://api.costgraph.ai}"
 response="$(curl -sS --max-time 3 -X POST "${api_url%/}/api/v1/tenant/ci/route" \
