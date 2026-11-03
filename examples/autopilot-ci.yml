@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      id-token: write
+    outputs:
+      runners: ${{ steps.route.outputs.runners }}
+    steps:
+      - id: route
+        uses: baselinehq/costgraph-action/route@v0
+        with:
+          default: blacksmith-4vcpu-ubuntu-2404
+          jobs: |
+            {
+              "build": "blacksmith-4vcpu-ubuntu-2404",
+              "test": "blacksmith-4vcpu-ubuntu-2404",
+              "lint": "blacksmith-2vcpu-ubuntu-2404"
+            }
+
+  build:
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').build || 'blacksmith-4vcpu-ubuntu-2404' }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: make build
+
+  test:
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').test || 'blacksmith-4vcpu-ubuntu-2404' }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: make test
+
+  lint:
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').lint || 'blacksmith-2vcpu-ubuntu-2404' }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: make lint

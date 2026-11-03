@@ -24,11 +24,53 @@ jobs:
           set -euo pipefail
           echo '{}' >"$RUNNER_TEMP/push.json"
           GITHUB_EVENT_PATH="$RUNNER_TEMP/push.json" bash scripts/ci-cost.sh | grep -F 'Not a pull request event'
+      - name: route uses the default runner without credentials
+        run: |
+          set -euo pipefail
+          echo '{}' >"$RUNNER_TEMP/push.json"
+          GITHUB_OUTPUT="$RUNNER_TEMP/route.out" GITHUB_EVENT_PATH="$RUNNER_TEMP/push.json" ROUTE_DEFAULT=ubuntu-latest \
+            ROUTE_JOBS='{"build":"ubuntu-latest"}' COSTGRAPH_API_KEY='' bash scripts/route.sh
+          grep -Fx 'runner=ubuntu-latest' "$RUNNER_TEMP/route.out"
+          grep -Fx 'runners={"build":"ubuntu-latest"}' "$RUNNER_TEMP/route.out"
       - name: ci-cost skips pull requests from forks without the api key
         run: |
           set -euo pipefail
           echo '{"pull_request":{"number":3,"head":{"repo":{"full_name":"someone/fork"}}}}' >"$RUNNER_TEMP/fork.json"
           GITHUB_EVENT_PATH="$RUNNER_TEMP/fork.json" COSTGRAPH_API_KEY='' bash scripts/ci-cost.sh | grep -F 'from a fork'
+
+  route:
+    runs-on: ubicloud-standard-2
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      runner: ${{ steps.route.outputs.runner }}
+      runners: ${{ steps.route.outputs.runners }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: route
+        uses: ./route
+        with:
+          default: ubicloud-standard-2
+          jobs: '{"routed":"ubicloud-standard-2"}'
+
+  routed:
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').routed || 'ubicloud-standard-2' }}
+    steps:
+      - name: The routed job got a runner label
+        env:
+          RUNNER_LABEL: ${{ needs.route.outputs.runner }}
+          RUNNERS: ${{ needs.route.outputs.runners }}
+        run: |
+          set -euo pipefail
+          echo "runner=$RUNNER_LABEL runners=$RUNNERS"
+          [[ -n "$RUNNER_LABEL" ]]
+          jq -e '.routed | type == "string"' <<<"$RUNNERS"
 
   setup:
     strategy:

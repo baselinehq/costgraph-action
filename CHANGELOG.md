@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `route`: new action for CostGraph AutoPilot for CI. It outputs the runner label for each job and falls back to the job's default label whenever AutoPilot cannot answer.
+- Every action can sign in with GitHub OIDC (`permissions: id-token: write`) instead of a stored API key; `api-key` is now optional in `ci-cost` and `terraform-cost`, and an explicit `api-key` still wins.
 - A `v0` tag follows every 0.x release; use `@v0` to get fixes without editing the workflow.
 - The setup step prints a notice in the run log when a newer action release is available than the pinned one.
 - `terraform-cost`: an Infracost pricing error, such as an API key without `pricing:read`, now fails the review step instead of posting a $0 estimate.

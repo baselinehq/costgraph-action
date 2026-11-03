@@ -1,0 +1,99 @@
+name: CostGraph AutoPilot for CI
+description: Choose the runner each job of this workflow runs on with CostGraph AutoPilot, falling back to the job's default runner whenever AutoPilot cannot answer.
+author: CostGraph
+branding:
+  icon: dollar-sign
+  color: blue
+inputs:
+  default:
+    description: Default runner label. Jobs run here whenever AutoPilot does not pick another runner.
+    required: true
+  jobs:
+    description: JSON map of job name to its default runner label, such as {"build":"blacksmith-4vcpu-ubuntu-2404"}, to route several jobs at once. Leave empty to route one job.
+    default: ''
+  api-key:
+    description: "Optional CostGraph API key with the ci:route scope. Without it the action signs in with GitHub OIDC, which needs 'permissions: id-token: write'."
+    default: ''
+  policy:
+    description: cheapest, balanced or fastest. Overrides the CostGraph setting for this workflow; empty uses the CostGraph setting.
+    default: ''
+  providers:
+    description: Runner providers this workflow may use, separated by commas or spaces. Can only narrow the providers allowed in CostGraph.
+    default: ''
+  os:
+    description: Operating system the jobs need (linux, macos or windows). Empty reads it from the default label.
+    default: ''
+  arch:
+    description: CPU architecture the jobs need (x86_64 or arm64). Empty reads it from the default label.
+    default: ''
+  cpu:
+    description: Minimum vCPUs. Empty reads it from the default label.
+    default: ''
+  ram:
+    description: Minimum memory in GB.
+    default: ''
+  gpu:
+    description: Minimum number of GPUs.
+    default: ''
+  docker:
+    description: Set to true when the jobs need Docker.
+    default: 'false'
+  release:
+    description: Set to true for release or deploy jobs. They take the best runner without random spread and are never cancelled or re-run by AutoPilot.
+    default: 'false'
+  fail-on-error:
+    description: Fail the job when AutoPilot cannot answer. The default uses the default runner instead.
+    default: 'false'
+  api-url:
+    description: CostGraph API base URL.
+    default: https://api.costgraph.ai
+outputs:
+  runner:
+    description: Runner label for the job, the default label when AutoPilot did not pick another.
+    value: ${{ steps.route.outputs.runner || steps.fallback.outputs.runner }}
+  runners:
+    description: JSON map of job name to runner label, for jobs routed through the jobs input.
+    value: ${{ steps.route.outputs.runners || steps.fallback.outputs.runners }}
+  decision-id:
+    description: CostGraph decision id, empty when the default runner was used without a decision.
+    value: ${{ steps.route.outputs.decision-id }}
+runs:
+  using: composite
+  steps:
+    - id: setup
+      shell: bash
+      continue-on-error: ${{ inputs.fail-on-error == 'false' }}
+      env:
+        INSTALL_CLI: 'false'
+        COSTGRAPH_API_KEY: ${{ inputs.api-key }}
+        COSTGRAPH_API_URL: ${{ inputs.api-url }}
+      run: bash "$GITHUB_ACTION_PATH/../scripts/setup.sh"
+    - id: route
+      shell: bash
+      continue-on-error: ${{ inputs.fail-on-error == 'false' }}
+      env:
+        INPUT_API_KEY: ${{ inputs.api-key }}
+        COSTGRAPH_API_URL: ${{ inputs.api-url }}
+        ROUTE_DEFAULT: ${{ inputs.default }}
+        ROUTE_JOBS: ${{ inputs.jobs }}
+        ROUTE_POLICY: ${{ inputs.policy }}
+        ROUTE_PROVIDERS: ${{ inputs.providers }}
+        ROUTE_OS: ${{ inputs.os }}
+        ROUTE_ARCH: ${{ inputs.arch }}
+        ROUTE_CPU: ${{ inputs.cpu }}
+        ROUTE_RAM: ${{ inputs.ram }}
+        ROUTE_GPU: ${{ inputs.gpu }}
+        ROUTE_DOCKER: ${{ inputs.docker }}
+        ROUTE_RELEASE: ${{ inputs.release }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: bash "$GITHUB_ACTION_PATH/../scripts/route.sh"
+    - id: fallback
+      if: steps.route.outcome != 'success'
+      shell: bash
+      env:
+        ROUTE_DEFAULT: ${{ inputs.default }}
+        ROUTE_JOBS: ${{ inputs.jobs }}
+      run: |
+        jobs="$(jq -c 'if type == "object" then . else {} end' <<<"${ROUTE_JOBS:-{\}}" 2>/dev/null)" || jobs='{}'
+        { echo "runner=$ROUTE_DEFAULT"; echo "runners=$jobs"; } >>"$GITHUB_OUTPUT"
+        echo "::warning::CostGraph AutoPilot could not choose a runner, so jobs use their default runner."
