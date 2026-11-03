@@ -10,8 +10,13 @@ trimmed() {
   [[ "$1" =~ ^[[:space:]]*(.*[^[:space:]])[[:space:]]*$ ]] && printf '%s' "${BASH_REMATCH[1]}"
 }
 
-[[ -n "${COSTGRAPH_API_KEY:-}" ]] || fail "api-key is empty. Store a CostGraph API key as the COSTGRAPH_API_KEY secret and pass it as api-key."
+COSTGRAPH_API_KEY="${INPUT_API_KEY:-${COSTGRAPH_API_KEY:-}}"
+[[ -n "$COSTGRAPH_API_KEY" ]] || fail "not signed in to CostGraph. Add 'permissions: id-token: write' to sign in with GitHub, or store a CostGraph API key as the COSTGRAPH_API_KEY secret and pass it as api-key."
 echo "::add-mask::$COSTGRAPH_API_KEY"
+export COSTGRAPH_API_KEY
+# shellcheck source=scripts/billing.sh
+source "$(dirname "${BASH_SOURCE[0]}")/billing.sh"
+require_billing "Terraform cost"
 command -v costgraph >/dev/null || fail "the CostGraph CLI is not installed; run baselinehq/costgraph-action first"
 
 hyperscaler_plan='any(.resource_changes[]?; (.provider_name // "") | test("/hashicorp/(aws|azurerm|google|google-beta)$"))'

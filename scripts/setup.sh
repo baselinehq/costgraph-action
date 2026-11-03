@@ -43,17 +43,6 @@ pinned_infracost_sha256() {
   esac
 }
 
-case "$(uname -s)" in
-  Linux) os=linux ;;
-  Darwin) os=darwin ;;
-  *) fail "unsupported runner OS $(uname -s); use a Linux or macOS runner" ;;
-esac
-case "$(uname -m)" in
-  x86_64 | amd64) arch=amd64 ;;
-  aarch64 | arm64) arch=arm64 ;;
-  *) fail "unsupported runner architecture $(uname -m); use an amd64 or arm64 runner" ;;
-esac
-
 version_pattern='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
 
 announce_newer_action() {
@@ -65,6 +54,49 @@ announce_newer_action() {
   [[ "$(printf '%s\n%s\n' "$used" "$latest" | sort -V | tail -1)" == "$latest" ]] || return 0
   echo "::notice title=costgraph-action $latest is available::This workflow uses costgraph-action $used. Use @v0 to get every 0.x release, or see https://github.com/baselinehq/costgraph-action/releases"
 }
+sign_in_with_github() {
+  [[ -z "${COSTGRAPH_API_KEY:-}" ]] || return 0
+  if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+    echo "::notice::No CostGraph API key and no GitHub OIDC token. Add 'permissions: id-token: write' to the job to sign in with GitHub, or pass a CostGraph API key as api-key."
+    return 0
+  fi
+  local api_url="${COSTGRAPH_API_URL:-https://api.costgraph.ai}" oidc token
+  api_url="${api_url%/}"
+  oidc="$(curl -fsS --max-time 10 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+    "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$api_url" 2>/dev/null | jq -r '.value // empty' 2>/dev/null)" || oidc=""
+  if [[ -z "$oidc" ]]; then
+    echo "::warning::Could not get a GitHub OIDC token for CostGraph; check that the job has 'permissions: id-token: write'."
+    return 0
+  fi
+  echo "::add-mask::$oidc"
+  token="$(jq -cn --arg token "$oidc" '{token: $token}' | curl -fsS --max-time 10 -H 'Content-Type: application/json' -d @- \
+    "$api_url/api/v1/ci/github-actions/token" 2>/dev/null | jq -r '.data.token // empty' 2>/dev/null)" || token=""
+  if [[ -z "$token" ]]; then
+    echo "::warning::CostGraph did not accept this workflow's GitHub sign-in. Connect the GitHub organization to CostGraph, or pass a CostGraph API key as api-key."
+    return 0
+  fi
+  echo "::add-mask::$token"
+  write_env COSTGRAPH_API_KEY "$token"
+  export COSTGRAPH_API_KEY="$token"
+  echo "Signed in to CostGraph with GitHub OIDC"
+}
+
+if [[ "${INSTALL_CLI:-true}" != "true" ]]; then
+  sign_in_with_github
+  exit 0
+fi
+
+case "$(uname -s)" in
+  Linux) os=linux ;;
+  Darwin) os=darwin ;;
+  *) fail "unsupported runner OS $(uname -s); use a Linux or macOS runner" ;;
+esac
+case "$(uname -m)" in
+  x86_64 | amd64) arch=amd64 ;;
+  aarch64 | arm64) arch=arm64 ;;
+  *) fail "unsupported runner architecture $(uname -m); use an amd64 or arm64 runner" ;;
+esac
+
 root="${RUNNER_TEMP:?RUNNER_TEMP is not set}/costgraph"
 bin="$root/bin"
 mkdir -p "$bin"
@@ -116,6 +148,8 @@ echo "$bin" >>"$GITHUB_PATH"
 export PATH="$bin:$PATH"
 costgraph version
 [[ -z "$infracost_version" ]] || INFRACOST_SKIP_UPDATE_CHECK=true infracost --version
+
+sign_in_with_github
 
 if [[ -n "${COSTGRAPH_API_KEY:-}" && "${EXPORT_INFRACOST_ENV:-false}" == "true" ]]; then
   echo "::add-mask::$COSTGRAPH_API_KEY"

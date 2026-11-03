@@ -7,6 +7,9 @@ GitHub Actions that bring CostGraph into your pull requests.
 | [Terraform cost](#terraform-cost) | Show the monthly cost of every Terraform change, with cheaper same-shape alternatives, in one pull request comment | `baselinehq/costgraph-action/terraform-cost@v0` |
 | [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0` |
 | [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@v0` |
+| [AutoPilot for CI](#autopilot-for-ci) | Run each job on the runner that fits its policy, falling back to its default runner | `baselinehq/costgraph-action/route@v0` |
+
+Every action can [sign in with GitHub OIDC](#sign-in-with-github-oidc) instead of a stored API key.
 
 Docs: [Terraform cost with Infracost](https://docs.costgraph.ai/costgraph/integrations/infracost) and [all CostGraph integrations](https://docs.costgraph.ai/costgraph/integrations).
 
@@ -182,8 +185,10 @@ place on every run:
   reported to CostGraph; connect Blacksmith first (see
   [the Blacksmith integration docs](https://docs.costgraph.ai/costgraph/integrations/blacksmith)).
   Until its usage arrives, the comment says no CI cost is recorded yet.
-- **An API key with the `focus:read` scope**, stored as the `COSTGRAPH_API_KEY`
-  secret. Without that scope the action reports that the key needs it.
+- **A way to sign in.** Either [sign in with GitHub OIDC](#sign-in-with-github-oidc)
+  (`permissions: id-token: write`), or an API key with the `focus:read` scope
+  stored as the `COSTGRAPH_API_KEY` secret. Without that scope the action
+  reports that the key needs it.
 - **CostGraph CLI v0.8.0 or later.** The default `cli-version: latest` picks it up.
 
 Usage is collected periodically (Blacksmith usage within about 6 hours), so the
@@ -213,11 +218,10 @@ jobs:
     if: always() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       pull-requests: write
     steps:
       - uses: baselinehq/costgraph-action/ci-cost@v0
-        with:
-          api-key: ${{ secrets.COSTGRAPH_API_KEY }}
 ```
 
 The job needs no checkout. Pull requests from forks get no secrets or write
@@ -227,7 +231,7 @@ token, so the `if:` skips them; without it the action skips them with a notice.
 
 | Input | Default | Description |
 |---|---|---|
-| `api-key` | required | CostGraph API key with the `focus:read` scope. Pass it from a secret. |
+| `api-key` | empty | CostGraph API key with the `focus:read` scope, from a secret. Empty signs in with GitHub OIDC. |
 | `github-token` | `github.token` | Token that reads the pull request and posts the comment. Needs `pull-requests: write`. |
 | `comment-behavior` | `update` | `update` edits the earlier CI cost comment, `new` posts a new one on every run. |
 | `fail-on-error` | `false` | Fail the job when the CI cost cannot be read or posted. The default reports a warning instead. |
@@ -262,7 +266,7 @@ Infracost for AWS, Azure and Google Cloud) and adds them to `PATH`, so you can r
 | `cli-version` | `latest` | CostGraph CLI release, such as `v0.6.0`. |
 | `infracost` | `true` | Also install Infracost, which prices AWS, Azure and Google Cloud. |
 | `infracost-version` | `v0.10.46` | Infracost release. |
-| `api-key` | empty | When set, Infracost in later steps prices through CostGraph with no further setup. |
+| `api-key` | empty | When set, or when the job can [sign in with GitHub OIDC](#sign-in-with-github-oidc), Infracost in later steps prices through CostGraph with no further setup. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
 
 Outputs: `cli-version` and `infracost-version`, the installed releases.
@@ -271,9 +275,112 @@ When `api-key` is set, the action masks it in logs and exports the
 Infracost settings, including the key, to the environment of later steps in the
 job.
 
+## AutoPilot for CI
+
+Let CostGraph AutoPilot choose the runner each job runs on. A small routing job
+asks CostGraph which runner label fits each job's policy (cheapest, balanced or
+fastest) and the jobs that need it run there. Whenever AutoPilot cannot answer,
+for any reason, every job gets its default label, so the workflow never waits on
+CostGraph. The one exception is billing: after the CostGraph trial, if billing
+is not set up, the routing job fails with a link to set it up, so CI never runs
+up a bill you have not seen.
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      id-token: write
+    outputs:
+      runners: ${{ steps.route.outputs.runners }}
+    steps:
+      - id: route
+        uses: baselinehq/costgraph-action/route@v0
+        with:
+          default: blacksmith-4vcpu-ubuntu-2404
+          jobs: '{"build":"blacksmith-4vcpu-ubuntu-2404","lint":"blacksmith-2vcpu-ubuntu-2404"}'
+
+  build:
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').build || 'blacksmith-4vcpu-ubuntu-2404' }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: make build
+
+  lint:
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').lint || 'blacksmith-2vcpu-ubuntu-2404' }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: make lint
+```
+
+The `||` fallbacks and `if: ${{ !cancelled() }}` keep the jobs running on their
+default label even when the routing job itself fails or times out. For a
+single job, use the `runner` output instead:
+`runs-on: ${{ needs.route.outputs.runner || 'ubuntu-latest' }}`. A complete
+workflow is in [examples/autopilot-ci.yml](examples/autopilot-ci.yml).
+
+The routing job runs on Linux or macOS; the routed jobs can run on any
+operating system, including macOS and Windows runners. Pull requests from forks
+get no credentials, so their jobs always use their default labels.
+
+### Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `default` | required | Default runner label, used whenever AutoPilot does not pick another. |
+| `jobs` | empty | JSON map of job name to its default label, to route several jobs. Job names are the keys under `jobs:` in the workflow. |
+| `api-key` | empty | CostGraph API key with the `ci:route` scope. Empty signs in with GitHub OIDC. |
+| `policy` | empty | `cheapest`, `balanced` or `fastest`. Overrides the CostGraph setting for this workflow. |
+| `providers` | empty | Runner providers this workflow may use, such as `blacksmith, ubicloud`. Can only narrow what CostGraph allows. |
+| `max-cores` | empty | Largest runner AutoPilot may pick, in vCPUs. Can only narrow the limit set in CostGraph. |
+| `allowed-os` | empty | Operating systems AutoPilot may pick, such as `linux, macos`. Can only narrow what CostGraph allows. |
+| `allowed-arch` | empty | CPU architectures AutoPilot may pick, `x64` and `arm64`. Can only narrow what CostGraph allows. |
+| `allow-gpu` | empty | `false` keeps AutoPilot off GPU runners. Can only narrow what CostGraph allows. |
+| `os`, `arch`, `cpu` | from the label | What the jobs need, when the default label does not say. |
+| `ram`, `gpu`, `docker` | none | Minimum memory in GB, minimum GPUs, and `true` when the jobs need Docker. |
+| `secrets` | `true` | `false` when the jobs use no secrets. Only such jobs go to a provider set to receive no secrets in CostGraph. |
+| `release` | `false` | `true` for release or deploy jobs: they take the best runner without spread and AutoPilot never cancels or re-runs them. |
+| `fail-on-error` | `false` | Fail the routing job when AutoPilot cannot answer, instead of using the default labels. |
+| `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+
+Outputs: `runner`, `runners` (JSON map of job name to label) and `decision-id`.
+The run log and job summary list each job's runner and the reason it was chosen.
+
+## Sign in with GitHub OIDC
+
+Every action in this repository can sign in to CostGraph with the workflow's own
+GitHub identity, so you store no CostGraph key in the repository:
+
+1. Connect the GitHub organization to CostGraph with the GitHub App
+   (Integrations, GitHub).
+2. Give the job `permissions: id-token: write` and leave `api-key` empty.
+
+The action asks GitHub for an OIDC token for `https://api.costgraph.ai` (or your
+`api-url`) and exchanges it for a CostGraph token that lasts at most one hour
+and only covers this repository: choosing runners for this run, reading this
+repository's CI cost, and looking up prices. It is masked in logs and exported
+as `COSTGRAPH_API_KEY` to later steps of the job. An `api-key` input always wins
+over OIDC. Pull requests from forks get no OIDC token: `route` then uses the
+default labels and `ci-cost` and `terraform-cost` skip with a notice.
+
+Anything broader, such as reading cost across the organization, still needs an
+API key.
+
 ## Security
 
-- Store the key as the `COSTGRAPH_API_KEY` secret. Never write it in workflow YAML.
+- Prefer [GitHub OIDC](#sign-in-with-github-oidc) to a stored key. When you do use a key, store it as the `COSTGRAPH_API_KEY` secret. Never write it in workflow YAML.
 - Pin the action to a release tag or, better, a commit SHA.
 - Grant only `contents: read` and `pull-requests: write`.
 - Pull requests from forks do not receive secrets or a write token. Skip the job
