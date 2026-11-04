@@ -124,7 +124,7 @@ request="$(jq -cn \
 [[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."
 
 api_url="${COSTGRAPH_API_URL:-https://api.costgraph.ai}"
-response="$(curl -sS --max-time 3 -X POST "${api_url%/}/api/v1/tenant/ci/route" \
+response="$(curl -sS --max-time 12 -X POST "${api_url%/}/api/v1/tenant/ci/route" \
   -H "X-API-Key: $COSTGRAPH_API_KEY" -H 'Content-Type: application/json' \
   -d "$request" -w '\n%{http_code}' 2>/dev/null)" || use_default "CostGraph AutoPilot did not answer in time."
 status="${response##*$'\n'}"
