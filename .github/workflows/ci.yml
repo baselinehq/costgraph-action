@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubicloud-standard-2
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').lint || 'ubicloud-standard-2' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,7 +57,8 @@ jobs:
         uses: ./route
         with:
           default: ubicloud-standard-2
-          jobs: '{"routed":"ubicloud-standard-2"}'
+          jobs: '{"routed":"ubicloud-standard-2","lint":"ubicloud-standard-2","review":"ubicloud-standard-2"}'
+          docker: 'true'
 
   routed:
     needs: [route]
@@ -94,7 +97,9 @@ jobs:
           infracost --version | grep -F "$INFRACOST_VERSION"
 
   review:
-    runs-on: ubicloud-standard-2
+    needs: [route]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').review || 'ubicloud-standard-2' }}
     env:
       HAS_API_KEY: ${{ secrets.COSTGRAPH_API_KEY != '' }}
     steps:
