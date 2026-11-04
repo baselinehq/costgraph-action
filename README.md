@@ -91,6 +91,7 @@ It does not need cloud credentials; your plan step may. Resources that already e
 | `infracost` | `true` | Run Infracost for AWS, Azure and Google Cloud resources. When `false`, those resources are left out. |
 | `infracost-version` | `v0.10.46` | Infracost release. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+| `github-token` | `github.token` | Reads this workflow file so each job is matched to its run history by its `name:`. Needs `contents: read`; without it jobs are matched by their key only. |
 | `pricing-url` | CLI default | CostGraph pricing URL used for alternatives. |
 | `github-api-url` | `github.api_url` | GitHub API URL, for GitHub Enterprise Server. |
 
@@ -237,6 +238,7 @@ token, so the `if:` skips them; without it the action skips them with a notice.
 | `fail-on-error` | `false` | Fail the job when the CI cost cannot be read or posted. The default reports a warning instead. |
 | `cli-version` | `latest` | CostGraph CLI release; needs a release newer than `v0.7.0`. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+| `github-token` | `github.token` | Reads this workflow file so each job is matched to its run history by its `name:`. Needs `contents: read`; without it jobs are matched by their key only. |
 | `github-api-url` | `github.api_url` | GitHub API URL, for GitHub Enterprise Server. |
 
 Outputs: `total-cost`, the pull request's CI cost so far, and `comment-url`, the
@@ -268,6 +270,7 @@ Infracost for AWS, Azure and Google Cloud) and adds them to `PATH`, so you can r
 | `infracost-version` | `v0.10.46` | Infracost release. |
 | `api-key` | empty | When set, or when the job can [sign in with GitHub OIDC](#sign-in-with-github-oidc), Infracost in later steps prices through CostGraph with no further setup. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+| `github-token` | `github.token` | Reads this workflow file so each job is matched to its run history by its `name:`. Needs `contents: read`; without it jobs are matched by their key only. |
 
 Outputs: `cli-version` and `infracost-version`, the installed releases.
 
@@ -298,6 +301,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
+      contents: read
       id-token: write
     outputs:
       runners: ${{ steps.route.outputs.runners }}
@@ -335,6 +339,10 @@ The routing job runs on Linux or macOS; the routed jobs can run on any
 operating system, including macOS and Windows runners. Pull requests from forks
 get no credentials, so their jobs always use their default labels.
 
+Give the routing job `contents: read` alongside `id-token: write`: AutoPilot
+reads the workflow file to match jobs with a `name:` to their past runs, which
+GitHub records under that name rather than the job key.
+
 ### Inputs
 
 | Input | Default | Description |
@@ -354,6 +362,7 @@ get no credentials, so their jobs always use their default labels.
 | `release` | `false` | `true` for release or deploy jobs: they take the best runner without spread and AutoPilot never cancels or re-runs them. |
 | `fail-on-error` | `false` | Fail the routing job when AutoPilot cannot answer, instead of using the default labels. |
 | `api-url` | `https://api.costgraph.ai` | CostGraph API URL. |
+| `github-token` | `github.token` | Reads this workflow file so each job is matched to its run history by its `name:`. Needs `contents: read`; without it jobs are matched by their key only. |
 
 Outputs: `runner`, `runners` (JSON map of job name to label) and `decision-id`.
 The run log and job summary list each job's runner and the reason it was chosen.

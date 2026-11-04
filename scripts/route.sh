@@ -44,6 +44,12 @@ repository="${GITHUB_REPOSITORY:-}"
 workflow_path="${GITHUB_WORKFLOW_REF:-}"
 workflow_path="${workflow_path#"$repository/"}"
 workflow_path="${workflow_path%%@*}"
+job_names="$(curl -fsS --max-time 3 -H "Authorization: Bearer ${ROUTE_GITHUB_TOKEN:-}" -H 'Accept: application/vnd.github.raw+json' \
+  "${GITHUB_API_URL:-https://api.github.com}/repos/$repository/contents/$workflow_path?ref=${GITHUB_WORKFLOW_SHA:-${GITHUB_SHA:-}}" 2>/dev/null |
+  yq -o=json '.jobs' 2>/dev/null |
+  jq -c 'if type == "object" then with_entries(select(.value.name? | type == "string" and (contains("${{") | not)) | .value = .value.name) else {} end
+         | if length == 0 then null else . end' 2>/dev/null)" || job_names=null
+[[ -n "$job_names" ]] || job_names=null
 providers="$(tr -s ', ' '\n' <<<"${ROUTE_PROVIDERS:-}" | jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else . end')"
 
 limit_list() {
@@ -101,6 +107,7 @@ request="$(jq -cn \
   --argjson allowed_arch "$allowed_arch" \
   --argjson allow_gpu "$allow_gpu" \
   --argjson jobs "$jobs" \
+  --argjson job_names "$job_names" \
   --slurpfile payload <(jq -c '.' "$event_path" 2>/dev/null || echo '{}') \
   '{
     repository: $repository, workflow: $workflow, workflow_path: $workflow_path,
@@ -111,7 +118,7 @@ request="$(jq -cn \
     default: $default, os: $os, arch: $arch,
     cpu: (($cpu | tonumber?) // 0), ram_gb: (($ram | tonumber?) // null), gpu: (($gpu | tonumber?) // 0),
     docker: ($docker == "true"), release: ($release == "true"), secrets: ($secrets != "false"),
-    policy: $policy, providers: $providers, jobs: $jobs,
+    policy: $policy, providers: $providers, jobs: $jobs, job_names: $job_names,
     max_cores: $max_cores, allowed_os: $allowed_os, allowed_arch: $allowed_arch, allow_gpu: $allow_gpu
   }')" || request=""
 [[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."
