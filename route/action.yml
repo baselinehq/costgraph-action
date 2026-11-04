@@ -62,6 +62,9 @@ inputs:
   api-url:
     description: CostGraph API base URL.
     default: https://api.costgraph.ai
+  github-token:
+    description: "Token that reads this workflow file to match each job to its run history by its display name. Needs 'permissions: contents: read'; without it jobs are matched by their key only."
+    default: ${{ github.token }}
 outputs:
   runner:
     description: Runner label for the job, the default label when AutoPilot did not pick another.
@@ -89,6 +92,7 @@ runs:
       env:
         INPUT_API_KEY: ${{ inputs.api-key }}
         COSTGRAPH_API_URL: ${{ inputs.api-url }}
+        ROUTE_GITHUB_TOKEN: ${{ inputs.github-token }}
         ROUTE_DEFAULT: ${{ inputs.default }}
         ROUTE_JOBS: ${{ inputs.jobs }}
         ROUTE_POLICY: ${{ inputs.policy }}

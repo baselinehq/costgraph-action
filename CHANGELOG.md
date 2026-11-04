@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `route`: sends each job's `name:` from the workflow file so AutoPilot finds the job's past runs, which GitHub records under that name. The routing job needs `contents: read`; without it jobs are matched by their key as before. New input `github-token`.
 - When the organization's CostGraph trial has ended and billing is not set up, `route`, `ci-cost` and `terraform-cost` fail the job with a link to set up billing, even with `fail-on-error: false`. Every other `route` failure still uses the default labels.
 - `route`: new action for CostGraph AutoPilot for CI. It outputs the runner label for each job and falls back to the job's default label whenever AutoPilot cannot answer.
 - Every action can sign in with GitHub OIDC (`permissions: id-token: write`) instead of a stored API key; `api-key` is now optional in `ci-cost` and `terraform-cost`, and an explicit `api-key` still wins.
