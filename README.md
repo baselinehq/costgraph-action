@@ -298,7 +298,7 @@ on:
 
 jobs:
   route:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 2
     permissions:
       contents: read
@@ -334,6 +334,11 @@ default label even when the routing job itself fails or times out. For a
 single job, use the `runner` output instead:
 `runs-on: ${{ needs.route.outputs.runner || 'ubuntu-latest' }}`. A complete
 workflow is in [examples/autopilot-ci.yml](examples/autopilot-ci.yml).
+
+Run the routing job on the cheapest runner you have. It finishes in a few
+seconds, but runners bill each started minute in full, so the smallest Linux
+runner of a provider you already use costs least. Public repositories get
+GitHub-hosted minutes free, so `ubuntu-latest` is the cheapest choice there.
 
 The routing job runs on Linux or macOS; the routed jobs can run on any
 operating system, including macOS and Windows runners. Pull requests from forks
