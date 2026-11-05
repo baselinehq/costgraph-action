@@ -9,7 +9,7 @@ inputs:
     description: Default runner label. Jobs run here whenever AutoPilot does not pick another runner.
     required: true
   jobs:
-    description: JSON map of job name to its default runner label, such as {"build":"blacksmith-4vcpu-ubuntu-2404"}, to route several jobs at once. Leave empty to route one job.
+    description: JSON map of job name to its default runner label, such as {"build":"blacksmith-4vcpu-ubuntu-2404"}. Leave empty to route every job whose runs-on reads this job's runners output, with the label after its || as that job's default.
     default: ''
   api-key:
     description: "Optional CostGraph API key with the ci:route scope. Without it the action signs in with GitHub OIDC, which needs 'permissions: id-token: write'."
