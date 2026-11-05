@@ -57,7 +57,6 @@ jobs:
         uses: ./route
         with:
           default: ubicloud-standard-2
-          jobs: '{"routed":"ubicloud-standard-2","lint":"ubicloud-standard-2","review":"ubicloud-standard-2"}'
           docker: 'true'
 
   routed:

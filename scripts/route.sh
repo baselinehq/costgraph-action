@@ -44,12 +44,22 @@ repository="${GITHUB_REPOSITORY:-}"
 workflow_path="${GITHUB_WORKFLOW_REF:-}"
 workflow_path="${workflow_path#"$repository/"}"
 workflow_path="${workflow_path%%@*}"
-job_names="$(curl -fsS --max-time 3 -H "Authorization: Bearer ${ROUTE_GITHUB_TOKEN:-}" -H 'Accept: application/vnd.github.raw+json' \
+workflow_jobs="$(curl -fsS --max-time 3 -H "Authorization: Bearer ${ROUTE_GITHUB_TOKEN:-}" -H 'Accept: application/vnd.github.raw+json' \
   "${GITHUB_API_URL:-https://api.github.com}/repos/$repository/contents/$workflow_path?ref=${GITHUB_WORKFLOW_SHA:-${GITHUB_SHA:-}}" 2>/dev/null |
   yq -o=json '.jobs' 2>/dev/null |
-  jq -c 'if type == "object" then with_entries(select(.value.name? | type == "string" and (contains("${{") | not)) | .value = .value.name) else {} end
-         | if length == 0 then null else . end' 2>/dev/null)" || job_names=null
+  jq -c 'if type == "object" then . else {} end' 2>/dev/null)" || workflow_jobs='{}'
+[[ -n "$workflow_jobs" ]] || workflow_jobs='{}'
+job_names="$(jq -c 'with_entries(select(.value.name? | type == "string" and (contains("${{") | not)) | .value = .value.name)
+                    | if length == 0 then null else . end' <<<"$workflow_jobs" 2>/dev/null)" || job_names=null
 [[ -n "$job_names" ]] || job_names=null
+if [[ "$jobs" == '{}' && -n "${GITHUB_JOB:-}" ]]; then
+  jobs="$(jq -c --arg route "$GITHUB_JOB" --arg default "$default_label" '
+    [.[] | .["runs-on"]? | strings
+     | capture("needs\\.\($route)\\.outputs\\.runners.*?\\)\\s*(?:\\.(?<dot>[A-Za-z0-9_-]+)|\\[\\s*[\u0022\u0027](?<idx>[A-Za-z0-9_-]+)[\u0022\u0027]\\s*\\])(?:\\s*\\|\\|\\s*[\u0022\u0027](?<label>[^\u0022\u0027]+)[\u0022\u0027])?")
+     | {key: (.dot // .idx), value: (.label // $default)}]
+    | from_entries' <<<"$workflow_jobs" 2>/dev/null)" || jobs='{}'
+  [[ -n "$jobs" ]] || jobs='{}'
+fi
 providers="$(tr -s ', ' '\n' <<<"${ROUTE_PROVIDERS:-}" | jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else . end')"
 
 limit_list() {

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `route`: with `jobs` empty, routes every job whose `runs-on` reads the routing job's `runners` output, taking the label after `||` as that job's default. The `jobs` input is no longer needed and still overrides when set.
 - `route`: waits up to 12 seconds for CostGraph AutoPilot before using the default labels, instead of 3.
 - `route`: sends each job's `name:` from the workflow file so AutoPilot finds the job's past runs, which GitHub records under that name. The routing job needs `contents: read`; without it jobs are matched by their key as before. New input `github-token`.
 - When the organization's CostGraph trial has ended and billing is not set up, `route`, `ci-cost` and `terraform-cost` fail the job with a link to set up billing, even with `fail-on-error: false`. Every other `route` failure still uses the default labels.

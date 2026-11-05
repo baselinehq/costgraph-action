@@ -22,12 +22,6 @@ jobs:
         uses: baselinehq/costgraph-action/route@v0
         with:
           default: blacksmith-4vcpu-ubuntu-2404
-          jobs: |
-            {
-              "build": "blacksmith-4vcpu-ubuntu-2404",
-              "test": "blacksmith-4vcpu-ubuntu-2404",
-              "lint": "blacksmith-2vcpu-ubuntu-2404"
-            }
 
   build:
     needs: [route]

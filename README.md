@@ -310,7 +310,6 @@ jobs:
         uses: baselinehq/costgraph-action/route@v0
         with:
           default: blacksmith-4vcpu-ubuntu-2404
-          jobs: '{"build":"blacksmith-4vcpu-ubuntu-2404","lint":"blacksmith-2vcpu-ubuntu-2404"}'
 
   build:
     needs: [route]
@@ -329,8 +328,11 @@ jobs:
       - run: make lint
 ```
 
-The `||` fallbacks and `if: ${{ !cancelled() }}` keep the jobs running on their
-default label even when the routing job itself fails or times out. For a
+The routing job finds the jobs to route in the workflow file: every job whose
+`runs-on` reads its `runners` output, with the label after `||` as that job's
+default label. The `||` fallbacks and `if: ${{ !cancelled() }}` keep the jobs
+running on their default label even when the routing job itself fails or times
+out. For a
 single job, use the `runner` output instead:
 `runs-on: ${{ needs.route.outputs.runner || 'ubuntu-latest' }}`. A complete
 workflow is in [examples/autopilot-ci.yml](examples/autopilot-ci.yml).
@@ -348,7 +350,7 @@ GitHub records under that name rather than the job key.
 | Input | Default | Description |
 |---|---|---|
 | `default` | required | Default runner label, used whenever AutoPilot does not pick another. |
-| `jobs` | empty | JSON map of job name to its default label, to route several jobs. Job names are the keys under `jobs:` in the workflow. |
+| `jobs` | empty | JSON map of job name to its default label. Empty routes every job whose `runs-on` reads this job's `runners` output, with the label after its `\|\|` as the default. Set it only to route a different set of jobs. |
 | `api-key` | empty | CostGraph API key with the `ci:route` scope. Empty signs in with GitHub OIDC. |
 | `policy` | empty | `cheapest`, `balanced` or `fastest`. Overrides the CostGraph setting for this workflow. |
 | `providers` | empty | Runner providers this workflow may use, such as `blacksmith, ubicloud`. Can only narrow what CostGraph allows. |
