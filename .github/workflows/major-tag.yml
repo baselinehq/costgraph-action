@@ -8,9 +8,25 @@ permissions:
   contents: write
 
 jobs:
+  route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      runners: ${{ steps.route.outputs.runners }}
+    steps:
+      - id: route
+        uses: baselinehq/costgraph-action/route@v0
+        with:
+          default: ubicloud-standard-2
+          release: 'true'
+
   move:
-    if: ${{ !github.event.release.prerelease }}
-    runs-on: ubicloud-standard-2
+    needs: [route]
+    if: ${{ !cancelled() && (!github.event.release.prerelease) }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').move || 'ubicloud-standard-2' }}
     steps:
       - uses: actions/checkout@v4
         with:
