@@ -159,14 +159,15 @@ runners="$(jq -c '.data.jobs | map_values(.runner)' <<<"$body")"
 [[ "$jobs" != '{}' ]] || runners='{}'
 decision="$(jq -r '.data.decision_id // ""' <<<"$body")"
 
-jq -r '.data.jobs | to_entries[] | "\(.key): \(.value.runner) (\(.value.reason))"' <<<"$body"
+job_results='.data.jobs | to_entries[] | .value.why = "\(.value.reason)\((.value.detail | strings | select(length > 0) | ": \(.)") // "")"'
+jq -r "$job_results"' | "\(.key): \(.value.runner) (\(.value.why))"' <<<"$body"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     echo "### CostGraph AutoPilot for CI"
     echo
     echo "| Job | Runner | Why |"
     echo "| --- | --- | --- |"
-    jq -r '.data.jobs | to_entries[] | "| \(.key) | \(.value.runner) | \(.value.reason) |"' <<<"$body"
+    jq -r "$job_results"' | "| \(.key) | \(.value.runner) | \(.value.why) |"' <<<"$body"
   } >>"$GITHUB_STEP_SUMMARY"
 fi
 finish "$runner" "$runners" "$decision"
