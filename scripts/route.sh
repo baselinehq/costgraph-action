@@ -60,7 +60,11 @@ if [[ "$jobs" == '{}' && -n "${GITHUB_JOB:-}" ]]; then
     | from_entries' <<<"$workflow_jobs" 2>/dev/null)" || jobs='{}'
   [[ -n "$jobs" ]] || jobs='{}'
 fi
-providers="$(tr -s ', ' '\n' <<<"${ROUTE_PROVIDERS:-}" | jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else . end')"
+split_list() {
+  tr -s ', ' '\n' <<<"$1" | jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else . end'
+}
+providers="$(split_list "${ROUTE_PROVIDERS:-}")"
+pin="$(split_list "${ROUTE_PIN:-}")"
 
 limit_list() {
   local input="$1" value="$2" allowed="$3" aliases="$4" list
@@ -112,6 +116,7 @@ request="$(jq -cn \
   --arg secrets "${ROUTE_SECRETS:-true}" \
   --arg policy "${ROUTE_POLICY:-}" \
   --argjson providers "$providers" \
+  --argjson pin "$pin" \
   --argjson max_cores "$max_cores" \
   --argjson allowed_os "$allowed_os" \
   --argjson allowed_arch "$allowed_arch" \
@@ -130,7 +135,7 @@ request="$(jq -cn \
     docker: ($docker == "true"), release: ($release == "true"), secrets: ($secrets != "false"),
     policy: $policy, providers: $providers, jobs: $jobs, job_names: $job_names,
     max_cores: $max_cores, allowed_os: $allowed_os, allowed_arch: $allowed_arch, allow_gpu: $allow_gpu
-  }')" || request=""
+  } + if $pin then {pin: $pin} else {} end')" || request=""
 [[ -n "$request" ]] || use_default "Could not build the CostGraph AutoPilot request."
 
 api_url="${COSTGRAPH_API_URL:-https://api.costgraph.ai}"
@@ -154,14 +159,15 @@ runners="$(jq -c '.data.jobs | map_values(.runner)' <<<"$body")"
 [[ "$jobs" != '{}' ]] || runners='{}'
 decision="$(jq -r '.data.decision_id // ""' <<<"$body")"
 
-jq -r '.data.jobs | to_entries[] | "\(.key): \(.value.runner) (\(.value.reason))"' <<<"$body"
+job_results='.data.jobs | to_entries[] | .value.why = "\(.value.reason)\((.value.detail | strings | select(length > 0) | ": \(.)") // "")"'
+jq -r "$job_results"' | "\(.key): \(.value.runner) (\(.value.why))"' <<<"$body"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     echo "### CostGraph AutoPilot for CI"
     echo
     echo "| Job | Runner | Why |"
     echo "| --- | --- | --- |"
-    jq -r '.data.jobs | to_entries[] | "| \(.key) | \(.value.runner) | \(.value.reason) |"' <<<"$body"
+    jq -r "$job_results"' | "| \(.key) | \(.value.runner) | \(.value.why) |"' <<<"$body"
   } >>"$GITHUB_STEP_SUMMARY"
 fi
 finish "$runner" "$runners" "$decision"

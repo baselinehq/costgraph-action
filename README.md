@@ -354,6 +354,7 @@ GitHub records under that name rather than the job key.
 | `api-key` | empty | CostGraph API key with the `ci:route` scope. Empty signs in with GitHub OIDC. |
 | `policy` | empty | `cheapest`, `balanced` or `fastest`. Overrides the CostGraph setting for this workflow. |
 | `providers` | empty | Runner providers this workflow may use, such as `blacksmith, ubicloud`. Can only narrow what CostGraph allows. |
+| `pin` | empty | Runners AutoPilot may pick, such as `beam, ubicloud-standard-8` or `beam:sandbox-8c-32g`: a provider, a runner label, or a provider and size. The policy picks the best of them; the default label is used only when none fits. An entry CostGraph does not know is rejected and the jobs use their default label. Can only narrow what CostGraph allows. |
 | `max-cores` | empty | Largest runner AutoPilot may pick, in vCPUs. Can only narrow the limit set in CostGraph. |
 | `allowed-os` | empty | Operating systems AutoPilot may pick, such as `linux, macos`. Can only narrow what CostGraph allows. |
 | `allowed-arch` | empty | CPU architectures AutoPilot may pick, `x64` and `arm64`. Can only narrow what CostGraph allows. |

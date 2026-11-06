@@ -20,6 +20,9 @@ inputs:
   providers:
     description: Runner providers this workflow may use, separated by commas or spaces. Can only narrow the providers allowed in CostGraph.
     default: ''
+  pin:
+    description: Runners AutoPilot may pick for these jobs, separated by commas or spaces. Each is a provider (beam, blacksmith), a runner label (ubicloud-standard-8) or a provider and size (beam:sandbox-8c-32g). The policy picks the best of them and the default runner is used only when none fits. Can only narrow the providers allowed in CostGraph.
+    default: ''
   max-cores:
     description: Largest runner AutoPilot may pick, in vCPUs, as a positive whole number. Can only narrow the limit set in CostGraph.
     default: ''
@@ -97,6 +100,7 @@ runs:
         ROUTE_JOBS: ${{ inputs.jobs }}
         ROUTE_POLICY: ${{ inputs.policy }}
         ROUTE_PROVIDERS: ${{ inputs.providers }}
+        ROUTE_PIN: ${{ inputs.pin }}
         ROUTE_MAX_CORES: ${{ inputs.max-cores }}
         ROUTE_ALLOWED_OS: ${{ inputs.allowed-os }}
         ROUTE_ALLOWED_ARCH: ${{ inputs.allowed-arch }}

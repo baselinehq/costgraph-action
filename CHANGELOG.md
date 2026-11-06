@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `route`: new input `pin` limits AutoPilot to the listed providers, runner labels or provider sizes such as `beam:sandbox-8c-32g`. The policy picks the best of them; the default label is used only when none fits.
 - `route`: with `jobs` empty, routes every job whose `runs-on` reads the routing job's `runners` output, taking the label after `||` as that job's default. The `jobs` input is no longer needed and still overrides when set.
 - `route`: waits up to 12 seconds for CostGraph AutoPilot before using the default labels, instead of 3.
 - `route`: sends each job's `name:` from the workflow file so AutoPilot finds the job's past runs, which GitHub records under that name. The routing job needs `contents: read`; without it jobs are matched by their key as before. New input `github-token`.
