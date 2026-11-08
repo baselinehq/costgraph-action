@@ -8,6 +8,7 @@ GitHub Actions that bring CostGraph into your pull requests.
 | [CostGraph CLI setup](#costgraph-cli-setup) | Install the CostGraph CLI for your own workflow steps | `baselinehq/costgraph-action@v0` |
 | [CI cost comment](#ci-cost-comment) | Show what a pull request's CI runs have cost so far, in one pull request comment | `baselinehq/costgraph-action/ci-cost@v0` |
 | [AutoPilot for CI](#autopilot-for-ci) | Run each job on the runner that fits its policy, falling back to its default runner | `baselinehq/costgraph-action/route@v0` |
+| [CI usage](#ci-usage) | Measure the CPU and memory a job uses on any Linux runner, for AutoPilot for CI | `baselinehq/costgraph-action/usage@v0` |
 
 Every action can [sign in with GitHub OIDC](#sign-in-with-github-oidc) instead of a stored API key.
 
@@ -374,6 +375,43 @@ GitHub records under that name rather than the job key.
 Outputs: `runner`, `runners` (JSON map of job name to label) and `decision-id`.
 The run log and job summary list each job's runner and the reason it was chosen.
 
+## CI usage
+
+Measure the CPU, memory, disk and network a job uses and report it to CostGraph,
+so AutoPilot for CI shows usage for jobs on runners it did not launch:
+GitHub-hosted, Blacksmith, Ubicloud and your own. Runners AutoPilot launches are
+measured without it. Put the step first in the job so it covers the whole job:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: baselinehq/costgraph-action/usage@v0
+      - uses: actions/checkout@v5
+      - run: make build
+```
+
+The step starts the CostGraph agent in the background and returns at once; after
+the last step of the job it stops the agent and sends one usage reading, signed
+in with [GitHub OIDC](#sign-in-with-github-oidc). It never fails the job: any
+problem is a warning in the run log. When the runner allows `sudo` without a
+password, the agent also records which network destinations the job talked to.
+
+- Linux x64 and arm64 runners; on macOS and Windows the step does nothing. In a
+  `container:` job it measures the job container only, and in a musl image such
+  as Alpine it does nothing.
+- Needs `permissions: id-token: write`. Adding a `permissions:` block sets every
+  scope you leave out to none, so keep the ones the job already used.
+- Pull requests from forks get no OIDC token, so their usage is not measured.
+- Downloads the agent (about 33 MB) from CostGraph's release bucket and checks
+  its SHA-256 against the checksum pinned in this action.
+
+Input: `api-url` (default `https://api.costgraph.ai`).
+
 ## Sign in with GitHub OIDC
 
 Every action in this repository can sign in to CostGraph with the workflow's own
@@ -385,11 +423,12 @@ GitHub identity, so you store no CostGraph key in the repository:
 
 The action asks GitHub for an OIDC token for `https://api.costgraph.ai` (or your
 `api-url`) and exchanges it for a CostGraph token that lasts at most one hour
-and only covers this repository: choosing runners for this run, reading this
-repository's CI cost, and looking up prices. It is masked in logs and exported
-as `COSTGRAPH_API_KEY` to later steps of the job. An `api-key` input always wins
+and only covers this repository: choosing runners for this run, reporting this
+job's usage, reading this repository's CI cost, and looking up prices. It is
+masked in logs and exported as `COSTGRAPH_API_KEY` to later steps of the job. An `api-key` input always wins
 over OIDC. Pull requests from forks get no OIDC token: `route` then uses the
-default labels and `ci-cost` and `terraform-cost` skip with a notice.
+default labels, `ci-cost` and `terraform-cost` skip with a notice, and `usage`
+measures nothing.
 
 Anything broader, such as reading cost across the organization, still needs an
 API key.

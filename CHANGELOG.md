@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `usage`: new action that measures the CPU, memory, disk and network of the job it runs in and reports it to CostGraph AutoPilot for CI, for runners AutoPilot did not launch. Put it first in the job with `permissions: id-token: write`. Linux x64 and arm64; it never fails the job.
 - `route`: new input `pin` limits AutoPilot to the listed providers, runner labels or provider sizes such as `beam:sandbox-8c-32g`. The policy picks the best of them; the default label is used only when none fits.
 - `route`: with `jobs` empty, routes every job whose `runs-on` reads the routing job's `runners` output, taking the label after `||` as that job's default. The `jobs` input is no longer needed and still overrides when set.
 - `route`: waits up to 12 seconds for CostGraph AutoPilot before using the default labels, instead of 3.
