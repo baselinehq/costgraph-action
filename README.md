@@ -298,7 +298,7 @@ on:
 
 jobs:
   route:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 2
     permissions:
       contents: read
@@ -337,7 +337,10 @@ single job, use the `runner` output instead:
 `runs-on: ${{ needs.route.outputs.runner || 'ubuntu-latest' }}`. A complete
 workflow is in [examples/autopilot-ci.yml](examples/autopilot-ci.yml).
 
-The routing job runs on Linux or macOS; the routed jobs can run on any
+The routing job runs on Linux or macOS and finishes in a few seconds, so give it
+the smallest runner you have: `ubuntu-slim` is the cheapest GitHub-hosted
+runner, and most runners bill a whole minute however short the job is. The
+routed jobs can run on any
 operating system, including macOS and Windows runners. Pull requests from forks
 get no credentials, so their jobs always use their default labels.
 

@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   route:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 2
     permissions:
       contents: read
