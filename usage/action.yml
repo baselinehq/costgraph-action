@@ -1,0 +1,14 @@
+name: CostGraph CI usage
+description: Measure the CPU, memory, disk and network this job uses and report it to CostGraph AutoPilot for CI. Put it first in the job; it never fails the job.
+author: CostGraph
+branding:
+  icon: activity
+  color: blue
+inputs:
+  api-url:
+    description: CostGraph API base URL.
+    default: https://api.costgraph.ai
+runs:
+  using: node24
+  main: index.js
+  post: index.js
