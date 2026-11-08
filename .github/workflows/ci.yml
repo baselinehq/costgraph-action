@@ -23,7 +23,11 @@ jobs:
     needs: [route]
     if: ${{ !cancelled() }}
     runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').lint || 'ubicloud-standard-2' }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - uses: baselinehq/costgraph-action/usage@v0
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -73,7 +77,11 @@ jobs:
     needs: [route]
     if: ${{ !cancelled() }}
     runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').routed || 'ubicloud-standard-2' }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - uses: baselinehq/costgraph-action/usage@v0
       - name: The routed job got a runner label
         env:
           RUNNER_LABEL: ${{ needs.route.outputs.runner }}
@@ -111,7 +119,11 @@ jobs:
     runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').review || 'ubicloud-standard-2' }}
     env:
       HAS_API_KEY: ${{ secrets.COSTGRAPH_API_KEY != '' }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - uses: baselinehq/costgraph-action/usage@v0
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
