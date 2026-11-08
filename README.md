@@ -281,12 +281,11 @@ job.
 ## AutoPilot for CI
 
 Let CostGraph AutoPilot choose the runner each job runs on. A small routing job
-asks CostGraph which runner label fits each job's policy (cheapest, balanced or
-fastest) and the jobs that need it run there. Whenever AutoPilot cannot answer,
-for any reason, every job gets its default label, so the workflow never waits on
-CostGraph. The one exception is billing: after the CostGraph trial, if billing
-is not set up, the routing job fails with a link to set it up, so CI never runs
-up a bill you have not seen.
+asks CostGraph which runner fits each job's policy (cheapest, balanced or
+fastest), and the routed jobs run there. Whenever AutoPilot cannot answer, every
+job gets its default label, so the workflow never waits on CostGraph. The one
+exception is billing. After the CostGraph trial, if billing is not set up, the
+routing job fails with a link to set it up.
 
 ```yaml
 name: CI
@@ -320,29 +319,31 @@ jobs:
       - run: make build
 
   lint:
-    needs: [route]
-    if: ${{ !cancelled() }}
-    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').lint || 'blacksmith-2vcpu-ubuntu-2404' }}
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v5
       - run: make lint
 ```
 
-The routing job finds the jobs to route in the workflow file: every job whose
-`runs-on` reads its `runners` output, with the label after `||` as that job's
-default label. The `||` fallbacks and `if: ${{ !cancelled() }}` keep the jobs
-running on their default label even when the routing job itself fails or times
-out. For a
-single job, use the `runner` output instead:
+The routing job routes every job whose `runs-on` reads its `runners` output,
+with the label after `||` as that job's default label. Here `build` is routed
+and `lint` keeps a fixed runner. The `||` fallbacks and `if: ${{ !cancelled() }}`
+keep routed jobs running on their default label even when the routing job fails
+or times out. For a single job, use the `runner` output instead:
 `runs-on: ${{ needs.route.outputs.runner || 'ubuntu-latest' }}`. A complete
 workflow is in [examples/autopilot-ci.yml](examples/autopilot-ci.yml).
 
-The routing job runs on Linux or macOS and finishes in a few seconds, so give it
-the smallest runner you have: `ubuntu-slim` is the cheapest GitHub-hosted
-runner, and most runners bill a whole minute however short the job is. The
-routed jobs can run on any
-operating system, including macOS and Windows runners. Pull requests from forks
-get no credentials, so their jobs always use their default labels.
+The routing job runs on Linux or macOS and finishes in a few seconds. Most
+runners bill a whole minute however short the job is, so give it the smallest
+runner you have, such as `ubuntu-slim`. Route the jobs that run for several
+minutes on a costly runner, such as builds, tests, image publishing and code
+scanning. A job that finishes in about a minute rarely saves more than the
+routing job costs, so keep it on a fixed runner, and leave the routing job out
+of workflows that have nothing worth routing.
+
+Routed jobs can run on any operating system, including macOS and Windows.
+Pull requests from forks get no credentials, so their jobs always use their
+default labels.
 
 Give the routing job `contents: read` alongside `id-token: write`: AutoPilot
 reads the workflow file to match jobs with a `name:` to their past runs, which
