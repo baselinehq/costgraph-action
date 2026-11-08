@@ -5,10 +5,10 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const agentVersion = 'v1.10.2';
+const agentVersion = 'v1.11.0';
 const agentSHA256 = {
-  amd64: 'ce6e8c725fc250604f400a62130daf1417a31d680b00ef8026c0c4f824339224',
-  arm64: 'dcddf396e74b4c3d73f5e34a215756e5d072ce2a4a2ca70bc52b6e11fd09acb6',
+  amd64: '27cf6913e91fb5d1d28835da461d1d65ba6f70f87da94855ad88807299a4cec2',
+  arm64: '24fcf17d4605dd7bf7d6037754847f883d7d633a62a4b0442315ccc258c71178',
 };
 const agentBase = 'https://costgraph-agent-releases.s3.us-east-1.amazonaws.com';
 const usagePrefix = 'costgraph-usage ';
