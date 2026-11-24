@@ -1,0 +1,33 @@
+name: Runner probe
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/runner-probe.yml
+
+permissions: {}
+
+jobs:
+  probe:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        label:
+          - latchkey-small
+          - latchkey-medium
+          - latchkey-large
+          - latchkey-xlarge
+          - blacksmith-2vcpu-ubuntu-2404
+          - ubicloud-standard-2
+          - avrea-ubuntu-latest-2-vcpu
+          - nscloud-ubuntu-24.04-amd64-2x4
+          - ubuntu-latest
+    runs-on: ${{ matrix.label }}
+    timeout-minutes: 5
+    steps:
+      - run: |
+          uname -m
+          nproc
+          free -g
