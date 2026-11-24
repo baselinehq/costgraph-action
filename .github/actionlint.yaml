@@ -7,4 +7,3 @@ self-hosted-runner:
     - latchkey-xlarge
     - blacksmith-2vcpu-ubuntu-2404
     - avrea-ubuntu-latest-2-vcpu
-    - nscloud-ubuntu-24.04-amd64-2x4

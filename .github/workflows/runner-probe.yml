@@ -22,7 +22,6 @@ jobs:
           - blacksmith-2vcpu-ubuntu-2404
           - ubicloud-standard-2
           - avrea-ubuntu-latest-2-vcpu
-          - nscloud-ubuntu-24.04-amd64-2x4
           - ubuntu-latest
     runs-on: ${{ matrix.label }}
     timeout-minutes: 5
