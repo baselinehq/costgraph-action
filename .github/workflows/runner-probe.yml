@@ -1,0 +1,44 @@
+name: Runner probe
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/runner-probe.yml
+
+permissions: {}
+
+jobs:
+  route:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      runners: ${{ steps.route.outputs.runners }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: route
+        uses: ./route
+        with:
+          default: ubicloud-standard-2
+          pin: latchkey
+
+  probe:
+    needs: [route]
+    if: ${{ !cancelled() && needs.route.result == 'success' }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runners || '{}').probe || 'ubicloud-standard-2' }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: baselinehq/costgraph-action/usage@v0
+      - run: |
+          uname -m
+          nproc
+          free -g
