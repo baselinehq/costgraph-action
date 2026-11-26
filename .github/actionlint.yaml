@@ -1,9 +1,5 @@
 self-hosted-runner:
   labels:
     - ubicloud-standard-2
-    - latchkey-small
-    - latchkey-medium
-    - latchkey-large
-    - latchkey-xlarge
     - blacksmith-2vcpu-ubuntu-2404
     - avrea-ubuntu-latest-2-vcpu
